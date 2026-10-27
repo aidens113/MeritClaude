@@ -2,14 +2,19 @@
 // - SessionStart: snapshots the repository state and adds a one-line git summary to context.
 // - Stop: if the tree or unpushed commits changed since the snapshot, sends the lead back once
 //   to commit and push (or say why the work waits). The same state never blocks twice, and
-//   changes that predate the session (the user's own work) never trigger it.
+//   changes that predate the session (the user's own work) never trigger it. When working
+//   documents are among the changes, the same send-back asks for /handoff (handoff-reminder).
+// - Stop, not sending back: a note instead, never a second send-back: uncommitted working
+//   documents when automatic management is off, and the /clear offer after a /handoff footer.
 // Opt out per repository with `git config merit.auto false`.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { blockStop, isMain, runHook } from './lib.mjs';
+import { clearPrompt } from './clear-prompt.mjs';
+import { handoffReminder, listPaths, uncommittedWorkingDocs } from './handoff-reminder.mjs';
+import { blockStop, isMain, runHook, systemMessage } from './lib.mjs';
 
 const MAX_FILES = 12;
 
@@ -63,10 +68,30 @@ export function onStop(input) {
   if (state.files.length) {
     lines.push(`- uncommitted: ${state.files.slice(0, MAX_FILES).map((f) => f.slice(3)).join(', ')}${state.files.length > MAX_FILES ? ', …' : ''}`);
   }
+  if (state.files.some((f) => /^docs\/(working\/|$)/.test(f.slice(3).replace(/^"/, '')))) {
+    const docs = uncommittedWorkingDocs(input.cwd || process.cwd());
+    if (docs.length) lines.push(`- working documents: ${listPaths(docs)}. Run /handoff first so they record the state the commit describes.`);
+  }
   if (state.unpushed) lines.push(`- ${state.unpushed} commit(s) not pushed`);
   if (state.notPushed) lines.push('- branch not on origin');
   lines.push('Commit validated work (stage only files this session changed) and push; merge a finished branch with `branch.mjs finish`. If it must wait (checks failing, mid-change, waiting on the user), say why in one line and stop.');
   return lines.join('\n');
+}
+
+// The single Stop output: one send-back, or one note, or nothing.
+export function stopOutput(input) {
+  if (input.stop_hook_active || input.agent_type) return null;
+  const cwd = input.cwd || process.cwd();
+  const reason = onStop(input);
+  if (reason) return { block: reason };
+  const notes = [];
+  if (git(cwd, ['config', '--get', 'merit.auto']) === 'false') {
+    const reminder = handoffReminder(uncommittedWorkingDocs(cwd));
+    if (reminder) notes.push(reminder);
+  }
+  const clear = clearPrompt(input.last_assistant_message);
+  if (clear) notes.push(clear);
+  return notes.length ? { note: notes.join(' ') } : null;
 }
 
 if (isMain(import.meta.url)) {
@@ -76,7 +101,8 @@ if (isMain(import.meta.url)) {
       if (text) process.stdout.write(`${text}\n`);
       return;
     }
-    const reason = onStop(input);
-    if (reason) blockStop(reason);
+    const out = stopOutput(input);
+    if (out?.block) blockStop(out.block);
+    else if (out?.note) systemMessage(out.note);
   });
 }

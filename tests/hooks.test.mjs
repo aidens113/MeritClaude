@@ -2,7 +2,7 @@
 //   node --test tests/
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -83,11 +83,33 @@ test('report-guard: sends a worker back once when the return contract is missing
   const id = `t${Date.now()}`;
   const stop = (extra) => run('hooks/report-guard.mjs', { hook_event_name: 'SubagentStop', agent_id: id, ...extra });
   assert.equal(stop({ agent_type: 'general-purpose', last_assistant_message: 'done' }), null);
-  assert.equal(stop({ agent_type: 'worker', last_assistant_message: 'Outcome: Done\nChanged: a.ts' }), null);
-  assert.equal(stop({ agent_type: 'worker', last_assistant_message: '```text\nOutcome: Partial\n```' }), null);
+  assert.equal(stop({ agent_type: 'worker', last_assistant_message: 'Outcome: Done\nChanged: a.ts\nReport: inline' }), null);
+  assert.equal(stop({ agent_type: 'worker', last_assistant_message: '```text\nOutcome: Partial\nReport: "inline"\n```' }), null);
   assert.equal(stop({ agent_type: 'worker', last_assistant_message: 'All done!', stop_hook_active: true }), null);
-  assert.equal(stop({ agent_type: 'worker', last_assistant_message: 'All done!' }).decision, 'block');
+  const out = stop({ agent_type: 'worker', last_assistant_message: 'All done!' });
+  assert.equal(out.decision, 'block');
+  assert.match(out.reason, /no return contract; no Report: line/);
   assert.equal(stop({ agent_type: 'worker', last_assistant_message: 'Still no contract' }), null, 'second stop is allowed');
+});
+
+test('report-guard: the Report line must name a file that exists', () => {
+  const cwd = tmp();
+  mkdirSync(join(cwd, 'reports'));
+  writeFileSync(join(cwd, 'reports', 'hooks.md'), '# Report\n');
+  let n = 0;
+  const stop = (message, agent_type = 'worker') => run('hooks/report-guard.mjs', {
+    hook_event_name: 'SubagentStop', agent_id: `r${Date.now()}-${n++}`, agent_type, cwd, last_assistant_message: message,
+  });
+  for (const claimed of ['reports/hooks.md', '`reports/hooks.md`', join(cwd, 'reports', 'hooks.md'), '<reports/hooks.md>']) {
+    assert.equal(stop(`Outcome: Done\nChanged: x\nReport: ${claimed}\nNotes: none`), null, claimed);
+  }
+  assert.equal(stop('Outcome: Done\n**Report**: reports/hooks.md'), null, 'bold label');
+  const missing = stop('Outcome: Done\nReport: reports/never-written.md', 'supervisor');
+  assert.equal(missing.decision, 'block');
+  assert.ok(missing.reason.includes(join(cwd, 'reports', 'never-written.md')), missing.reason);
+  assert.equal(stop('Outcome: Done\nChanged: x').decision, 'block', 'no Report line');
+  assert.equal(stop('Outcome: Done\nReport: <path from the brief>', 'worker-light').decision, 'block', 'placeholder left in');
+  assert.equal(stop('Outcome: Done\nReport: reports', 'worker-heavy').decision, 'block', 'a directory is not a report');
 });
 
 test('report-guard: falls back to the transcript when last_assistant_message is absent', () => {
@@ -115,21 +137,152 @@ test('usage-ledger: records models and deduplicated token totals', () => {
   assert.match(report.stdout, /claude-haiku-4-5-20251001/);
 });
 
-test('session-context: lists Active and Blocked working documents only', () => {
+const FIXTURES = join(REPO, 'tests', 'fixtures');
+const gitIn = (cwd, ...args) => {
+  const r = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
+  assert.equal(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
+  return r.stdout;
+};
+function gitRepo() {
   const dir = tmp();
+  gitIn(dir, 'init', '-q', '-b', 'main');
+  for (const [k, v] of [['user.name', 'Test'], ['user.email', 'test@example.com'], ['core.autocrlf', 'false']]) gitIn(dir, 'config', k, v);
+  return dir;
+}
+function workingDir(dir, indexFixture) {
   mkdirSync(join(dir, 'docs', 'working'), { recursive: true });
-  writeFileSync(join(dir, 'docs', 'working', 'handoff.md'), '# Handoff\n');
-  writeFileSync(join(dir, 'docs', 'working', 'README.md'), [
-    '| Document | Status | Scope |', '| --- | --- | --- |',
-    '| [a.md](a.md) | Active | Doing A |', '| [b.md](b.md) | Complete | Done B |', '| [c.md](c.md) | Blocked | Waiting on C |',
-  ].join('\r\n'));
-  const r = spawnSync(process.execPath, [join(REPO, 'hooks/session-context.mjs')], { input: JSON.stringify({ cwd: dir }), encoding: 'utf8' });
-  assert.match(r.stdout, /handoff\.md/);
-  assert.match(r.stdout, /Active: a\.md: Doing A/);
-  assert.match(r.stdout, /Blocked: c\.md: Waiting on C/);
-  assert.doesNotMatch(r.stdout, /b\.md/);
-  const empty = spawnSync(process.execPath, [join(REPO, 'hooks/session-context.mjs')], { input: JSON.stringify({ cwd: tmp() }), encoding: 'utf8' });
-  assert.equal(empty.stdout, '');
+  if (indexFixture) copyFileSync(join(FIXTURES, indexFixture), join(dir, 'docs', 'working', 'README.md'));
+  return join(dir, 'docs', 'working');
+}
+const sessionContext = (cwd) => {
+  const r = spawnSync(process.execPath, [join(REPO, 'hooks/session-context.mjs')], { input: JSON.stringify({ cwd }), encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stderr, '');
+  return r.stdout;
+};
+
+test('session-context: status-column index lists Active and Blocked working documents only', () => {
+  const dir = tmp();
+  const working = workingDir(dir, 'working-index-status-column.md');
+  writeFileSync(join(working, 'handoff.md'), '# Handoff\n');
+  const out = sessionContext(dir);
+  assert.match(out, /handoff\.md/);
+  assert.match(out, /Active: alpha\.md: Build the alpha widget/);
+  assert.match(out, /Blocked: gamma\.md: Waiting on gamma credentials/);
+  assert.doesNotMatch(out, /beta\.md/);
+  assert.match(out, /Run \/resume <document>/);
+  assert.doesNotMatch(out, /Uncommitted/, 'not a git repository');
+});
+
+test('session-context: section-heading index finds Scope by header name, plus uncommitted documents', () => {
+  const dir = gitRepo();
+  workingDir(dir, 'working-index-sections.md');
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'index');
+  writeFileSync(join(dir, 'docs', 'working', 'draft plan.md'), 'draft\n');
+  writeFileSync(join(dir, 'outside.txt'), 'not a working document\n');
+  const out = sessionContext(dir);
+  assert.match(out, /Active: orchard-plan\.md: Plant the orchard rows\n/);
+  assert.match(out, /Active: kiln-repair\.md: Repair the kiln door\n/);
+  assert.match(out, /Blocked: harbor-survey\.md: Survey waits on tide tables\n/);
+  assert.doesNotMatch(out, /old-bridge|Document|lead|120/, 'Complete section, header rows and other columns are skipped');
+  assert.match(out, /Uncommitted working documents \(1\): docs\/working\/draft plan\.md/);
+  assert.doesNotMatch(out, /outside\.txt/);
+  assert.match(out.trim().split('\n').at(-1), /Run \/resume <document>/);
+});
+
+test('session-context: capped at 15 lines, and silent outside docs/working', () => {
+  const dir = tmp();
+  const working = workingDir(dir);
+  writeFileSync(join(working, 'handoff.md'), '# Handoff\n');
+  const rows = Array.from({ length: 30 }, (_, i) => `| [d${i}.md](d${i}.md) | Active | Scope ${i} ${'x'.repeat(200)} |`);
+  writeFileSync(join(working, 'README.md'), ['| Document | Status | Scope |', '| --- | --- | --- |', ...rows].join('\n'));
+  const lines = sessionContext(dir).trim().split('\n');
+  assert.equal(lines.length, 15, lines.join('\n'));
+  assert.match(lines.at(-2), /…and 19 more in docs\/working\/README\.md/);
+  assert.ok(lines.every((l) => l.length < 200), 'scopes are truncated');
+  assert.equal(sessionContext(tmp()), '', 'no docs/working');
+  const bare = tmp();
+  workingDir(bare);
+  assert.equal(sessionContext(bare), '', 'docs/working with nothing to report');
+});
+
+test('git-checkpoint: one Stop output: /handoff joins the send-back, notes only when not sending back', () => {
+  const dir = gitRepo();
+  workingDir(dir, 'working-index-status-column.md');
+  writeFileSync(join(dir, 'a.txt'), 'one\n');
+  gitIn(dir, 'add', '.');
+  gitIn(dir, 'commit', '-q', '-m', 'initial');
+  const session = `h${Date.now()}`;
+  const start = spawnSync(process.execPath, [join(REPO, 'hooks/git-checkpoint.mjs')], {
+    input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: session, cwd: dir }), encoding: 'utf8' });
+  assert.equal(start.status, 0, start.stderr);
+  const stop = (extra = {}) => run('hooks/git-checkpoint.mjs', { hook_event_name: 'Stop', session_id: session, cwd: dir, ...extra });
+  const footer = 'Git: committed and pushed dev\nNext: /clear, then /resume alpha';
+
+  assert.deepEqual(stop({ last_assistant_message: footer }), { systemMessage: CLEAR_TEXT }, 'clean tree after handoff');
+  assert.equal(stop({ last_assistant_message: 'Running tests next; /clear is unrelated.' }), null);
+
+  writeFileSync(join(dir, 'docs', 'working', 'plan.md'), 'draft\n');
+  writeFileSync(join(dir, 'a.txt'), 'two\n');
+  const nag = stop({ last_assistant_message: footer });
+  assert.equal(nag.decision, 'block');
+  assert.equal(nag.systemMessage, undefined, 'a send-back never also suggests /clear');
+  assert.match(nag.reason, /working documents: docs\/working\/plan\.md\. Run \/handoff/);
+  assert.match(nag.reason, /uncommitted: .*a\.txt/);
+  assert.equal(stop(), null, 'same state never blocks twice');
+  assert.equal(stop({ last_assistant_message: footer, stop_hook_active: true }), null);
+
+  gitIn(dir, 'config', 'merit.auto', 'false');
+  const note = stop({ last_assistant_message: footer });
+  assert.equal(note.decision, undefined, 'opt-out never sends back');
+  assert.match(note.systemMessage, /^Uncommitted working documents: docs\/working\/plan\.md\. Run \/handoff/);
+  assert.match(note.systemMessage, /Clear the message history now\?/);
+  assert.equal(stop({ agent_type: 'worker', last_assistant_message: footer }), null, 'subagents are not checked');
+});
+const CLEAR_TEXT = 'Unit handed off. Clear the message history now? Type /clear to start the next task clean; '
+  + 'docs/working holds the state and /resume picks it up. Carry on instead if this task continues.';
+
+test('instruction-metrics: records size and load reason, never content', () => {
+  const dir = tmp();
+  const log = join(dir, 'nested', 'instructions.ndjson');
+  const load = (extra) => run('hooks/instruction-metrics.mjs', { hook_event_name: 'InstructionsLoaded', session_id: 's1', cwd: 'D:/x', ...extra }, { MERIT_INSTRUCTIONS_LOG: log });
+  assert.equal(load({ file_path: 'D:/x/CLAUDE.md', memory_type: 'Project', load_reason: 'session_start', content: 'SECRET-MARKER é\n' }), null);
+  const onDisk = join(dir, 'AGENTS.md');
+  writeFileSync(onDisk, '0123456789\n');
+  load({ file_path: onDisk, load_reason: 'include', parent_file_path: 'D:/x/CLAUDE.md' });
+  load({ load_reason: 'session_start' });
+  load({ hook_event_name: 'Stop', file_path: 'D:/x/CLAUDE.md' });
+  const text = readFileSync(log, 'utf8');
+  assert.doesNotMatch(text, /SECRET-MARKER/);
+  const [first, second, ...rest] = text.trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(rest.length, 0, 'no file_path or another event writes nothing');
+  assert.equal(first.bytes, Buffer.byteLength('SECRET-MARKER é\n'));
+  assert.equal(first.memory_type, 'Project');
+  assert.equal(first.load_reason, 'session_start');
+  assert.match(first.time, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(second.bytes, 11, 'falls back to the size on disk');
+  assert.equal(second.parent_file_path, 'D:/x/CLAUDE.md');
+  assert.ok(!existsSync(join(dir, 'other.ndjson')));
+});
+
+test('git-guard: ported worker rules: heredocs, gh pr writes, substitutions, agent_id', () => {
+  const check = (command, agent_type, extra = {}) => decision(run('hooks/git-guard.mjs', { ...bash(command, agent_type), ...extra }));
+  const report = "mkdir -p r && cat > r/x.md <<'EOF'\n# Report\nThe attempt `git commit -m x` was denied.\ngit push origin dev\nEOF";
+  assert.equal(check(report, 'worker'), 'allow', 'a heredoc body is data');
+  assert.equal(check('cat > n.md <<EOF\ngit commit is quoted\nEOF\ngit push origin dev', 'worker'), 'deny', 'a write after the heredoc');
+  assert.equal(check("bash <<'EOF'\ngit push origin dev\nEOF", 'worker'), 'deny', 'a body fed to a shell runs');
+  assert.equal(check('git commit -F - <<EOF\nmessage\nEOF', 'worker'), 'deny', 'the opening line is still a command');
+  assert.equal(check('git commit -F - <<EOF\nmessage\nEOF'), 'allow', 'the lead commits with a heredoc message');
+  for (const c of ['gh pr create --fill', 'gh pr merge 12 --squash', 'npm test && gh pr create -t x', 'gh.exe pr merge 3']) {
+    assert.equal(check(c, 'worker-light'), 'deny', c);
+  }
+  for (const c of ['gh pr view 12', 'gh pr list', 'gh issue create -t x', 'echo ghost pr create']) assert.equal(check(c, 'worker'), 'allow', c);
+  assert.equal(check('gh pr create --fill'), 'allow', 'the lead opens pull requests');
+  for (const c of ['echo $(git commit -m x)', 'x=`git push`', 'git.cmd push', '{ git commit -m x; }']) assert.equal(check(c, 'worker'), 'deny', c);
+  assert.equal(check('git commit -m x', undefined, { agent_id: 'a1' }), 'deny', 'agent_id alone marks a subagent');
+  assert.equal(decision(run('hooks/git-guard.mjs', { tool_name: 'PowerShell', agent_type: 'worker',
+    tool_input: { command: '& "C:\\Program Files\\Git\\cmd\\git.exe" commit -m x' } })), 'deny');
 });
 
 test('bin/meritclaude: lists commands and forwards to them', () => {
@@ -168,7 +321,7 @@ test('install: replaces retired hooks, keeps user settings, and is idempotent', 
   assert.deepEqual(s.permissions.allow, ['Bash(git status *)']);
   assert.equal(s.modelSettings['claude-opus-5-5'].effortLevel, 'high');
   assert.equal(s.modelSettings['claude-sonnet-5'].effortLevel, 'medium');
-  assert.equal(s.hooks.InstructionsLoaded, undefined);
+  assert.doesNotMatch(JSON.stringify(s.hooks.InstructionsLoaded ?? []), /AgentBrain/, 'retired metrics hook removed');
   const commands = JSON.stringify(s.hooks);
   assert.doesNotMatch(commands, /AgentBrain/);
   assert.match(commands, /echo keep/);
