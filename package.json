@@ -7,7 +7,7 @@
   "homepage": "https://github.com/aidens113/MeritClaude#readme",
   "bugs": { "url": "https://github.com/aidens113/MeritClaude/issues" },
   "bin": { "meritclaude": "bin/meritclaude.mjs" },
-  "files": ["AGENTS.md", "agents", "bin", "hooks", "tools", "install.mjs"],
+  "files": ["AGENTS.md", "agents", "bin", "hooks", "lessons", "skills", "templates", "tools", "install.mjs"],
   "scripts": {
     "test": "node --test tests/hooks.test.mjs tests/git.test.mjs",
     "install-config": "node install.mjs",

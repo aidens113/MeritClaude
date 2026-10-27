@@ -173,8 +173,17 @@ test('install: replaces retired hooks, keeps user settings, and is idempotent', 
   assert.doesNotMatch(commands, /AgentBrain/);
   assert.match(commands, /echo keep/);
   assert.match(commands, /git-guard\.mjs/);
-  assert.match(readFileSync(join(home, 'CLAUDE.md'), 'utf8'), /AGENTS\.md/);
+  const repoPath = REPO.replace(/\\/g, '/');
+  const claudeMd = readFileSync(join(home, 'CLAUDE.md'), 'utf8');
+  assert.ok(claudeMd.includes(`@${repoPath}/AGENTS.md`), claudeMd);
+  assert.ok(claudeMd.includes(`@${repoPath}/lessons/global/INDEX.md`));
+  assert.ok(claudeMd.includes(`node ${repoPath}/tools/branch.mjs`));
   assert.match(readFileSync(join(home, 'agents', 'worker-light.md'), 'utf8'), /model: haiku/);
+  for (const skill of ['handoff', 'resume', 'lesson', 'new-project']) {
+    const text = readFileSync(join(home, 'skills', skill, 'SKILL.md'), 'utf8');
+    assert.doesNotMatch(text, /\{\{MERITCLAUDE\}\}|AgentBrain|F:\\/, skill);
+    if (skill !== 'resume' || text.includes('branch.mjs')) assert.ok(text.includes(repoPath), skill);
+  }
 
   const again = install('--apply');
   assert.match(again.stdout, /nothing to change/);

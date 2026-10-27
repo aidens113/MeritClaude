@@ -152,7 +152,7 @@ its own `AGENTS.md`. Only the lead runs mutating git **(hook)**; workers and sub
 leave changes in the working tree for the lead to commit.
 
 **Branches.** `main` is stable, `dev` is integration, and every work branch records its parent.
-Manage them with `node D:/MeritClaude/tools/branch.mjs`: `status`, `init` (creates `dev` off
+Manage them with `node <MeritClaude>/tools/branch.mjs` (the path is in `~/.claude/CLAUDE.md`): `status`, `init` (creates `dev` off
 `main`), `start <name> [--parent <branch>] [--worktree]`, `sync`, `finish [<branch>]`, `promote`. Name work branches
 `feat/<slug>` or `fix/<slug>`; a sub-branch of a feature is `feat/<epic>--<part>` with
 `--parent feat/<epic>`; a hotfix starts with `--parent main`. A repository with only `main` gets
