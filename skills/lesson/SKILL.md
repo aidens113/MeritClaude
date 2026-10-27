@@ -32,11 +32,14 @@ origin: <repository and date>
 <Why it matters, so a future agent can judge edge cases.>
 ```
 
-Then add or update its line in `{{MERITCLAUDE}}/lessons/$0/INDEX.md`, creating the file with a
-one-line heading if it does not exist: `- [<Title>]($1.md): <description>`. Global lessons load
-in every session; a family index loads only in repositories whose `CLAUDE.md` imports
-`@{{MERITCLAUDE}}/lessons/<family>/INDEX.md`, so add that import to the current repository if
-it belongs to the family and lacks it.
+Then regenerate the indexes with `node {{MERITCLAUDE}}/install.mjs --index`. It rewrites every
+`lessons/*/INDEX.md` from the lesson files, one line each, `- [<Title>](<slug>.md): <description>`,
+taking the title from the first `# ` heading and the description from the frontmatter, so never
+edit an index by hand. Check `git -C {{MERITCLAUDE}} diff lessons` shows only this lesson's line
+changing, and that `node {{MERITCLAUDE}}/install.mjs --check` reports no budget problem for the
+lesson or its index. Global lessons load in every session; a family index loads only in
+repositories whose `CLAUDE.md` imports `@{{MERITCLAUDE}}/lessons/<family>/INDEX.md`, so add that
+import to the current repository if it belongs to the family and lacks it.
 
 Commit in MeritClaude under its git rules: work on `dev`, stage only the lesson and index, then
 push:

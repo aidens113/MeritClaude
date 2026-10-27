@@ -18,7 +18,9 @@ repository.
 ## Current State
 
 **Adopted.** Working documents follow the header block, `Current State`, and ledger format
-below. The index in [README.md](./README.md) is maintained by hand.
+below. The index in [README.md](./README.md) is generated from the documents' headers by
+`node <MeritClaude>/tools/working-docs-audit.mjs --update`, and the same tool without
+`--update` checks every document against this protocol.
 
 **Not done:** none.
 
@@ -34,6 +36,11 @@ therefore the only channel through which one agent's knowledge reaches the next,
 to be treated as a durable data structure rather than as prose that accumulates: current truth
 kept separate from history, status machine-readable, and every document small enough to read
 inside a task budget.
+
+Prose that accumulates fails predictably, and every rule below prevents one of those failures:
+documents outgrow a task budget, current truth gets buried in a chronological log, free-text
+status cannot be triaged or indexed, and an effort tracked in two repositories drifts because
+neither side owns it.
 
 ---
 
@@ -138,7 +145,10 @@ silently lose each other's writes. So:
   when its tools cannot write report files.
 - Workers never edit `Current State` or the `Work Ledger`.
 - A worker writes only its owned files and its report, using filenames unique to it. Workers
-  never share a scratch file.
+  never share a scratch file: two did once, and one overwrote the other's staged block.
+- A worker under a sub-supervisor reports to
+  `docs/working/<effort-slug>/reports/<supervisor-label>/<worker-label>.md`; the sub-supervisor
+  writes `reports/<supervisor-label>.md`.
 - The supervisor reads the reports, independently verifies the claims, merges the outcome into
   `Current State`, and appends the ledger entry.
 
@@ -146,7 +156,8 @@ Brief format:
 
 ```text
 ### Brief: <agent-label>
-- Repository: <this repository>
+- Agent: <worker-light | worker | worker-heavy | supervisor>
+- Repository: <this repository, and the branch or worktree>
 - Task: <what to accomplish>
 - Required reads: <this document's Current State, plus specific files>
 - Owns (may edit): <explicit paths>
@@ -156,7 +167,10 @@ Brief format:
 ```
 
 `Owns` and `Must not touch` are what make parallel work safe. Partition by file, never by
-topic. If two briefs need the same file, the work is serial. A brief is at most 40 lines.
+topic. If two briefs need the same file, the work is serial. A brief is at most 40 lines, and
+holds only the task: each agent's operating rules (what to read, never committing, the return
+contract) live in its agent definition. A copyable block is in MeritClaude's
+`templates/brief.md`, and the report skeleton in `templates/worker-report.md`.
 
 Report file format:
 
@@ -181,10 +195,30 @@ Report: docs/working/<effort-slug>/reports/<agent-label>.md
 Notes: <at most three lines>
 ```
 
+Everything beyond those lines belongs in the report file.
+
+### Cross-repository pairing
+
+An effort spanning this repository and a paired repository gets one document in each, named
+identically, each naming the other in `Paired document`. Each shared contract has exactly one
+owning document: the owning side records the contract's state; the paired side links to it and
+does not restate it. A change crossing the boundary gets one full ledger entry in the owning
+document and a one-line entry in the paired document referencing it by date and title. The
+user is alerted before the first edit on the other side of a task, and work there follows that
+repository's own `AGENTS.md`.
+
+<!-- PROJECT: which side owns which kind of contract by default, matching the boundary rules in
+AGENTS.md. Delete this whole section if nothing here is paired. -->
+
 ### Index
 
-`docs/working/README.md` lists every working document with its status and one-line scope. Any
-agent that creates, retires, or re-statuses a document updates the index in the same work unit.
+`docs/working/README.md` lists every working document, grouped by status, with its owner, size,
+one-line scope, and paired document. It is the cheapest entry point: an agent reads it to find
+the right document instead of listing the directory and guessing. It is generated from the
+header blocks, so edit a document's header, never the table. Any agent that creates, retires,
+or re-statuses a document regenerates it in the same work unit with
+`node <MeritClaude>/tools/working-docs-audit.mjs --update`, and runs the tool again without
+`--update` to confirm every document conforms.
 
 ### Durability
 
@@ -207,17 +241,19 @@ memory with it.
 
 Read your brief, the files it names, and the `Current State` of the working document it points
 to. Nothing else: not the index, not the rest of that document, not the repository's planning
-documents. If the brief is not enough to do the work correctly, say so rather than reading
-broadly — an insufficient brief is the supervisor's defect to fix.
+documents. Reading more is how a worker spends the context its actual task needs. If the brief
+is not enough to do the work correctly, say so rather than reading broadly — an insufficient
+brief is the supervisor's defect to fix.
 
 **During a task**
 
 Record decisions, findings, and validation results as they happen. A working document updated
-only at the end of a session is a summary, not memory.
+only at the end of a session is a summary, not memory: the reasoning that would help the next
+agent is exactly what gets dropped.
 
 **Ending a task**
 
-Update `Current State`, append the ledger entry, update the index if status changed, and commit.
+Update `Current State`, append the ledger entry, regenerate the index, and commit (`/handoff`).
 Leave enough for the next agent: what changed, why, files affected, tests performed, known
 failures, remaining work, and the recommended next task.
 

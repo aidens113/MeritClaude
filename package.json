@@ -9,7 +9,7 @@
   "bin": { "meritclaude": "bin/meritclaude.mjs" },
   "files": ["AGENTS.md", "agents", "bin", "hooks", "lessons", "skills", "templates", "tools", "install.mjs"],
   "scripts": {
-    "test": "node --test tests/hooks.test.mjs tests/git.test.mjs",
+    "test": "node --test tests/hooks.test.mjs tests/git.test.mjs tests/install.test.mjs tests/working-docs-audit.test.mjs",
     "install-config": "node install.mjs",
     "usage": "node tools/usage-report.mjs",
     "branch": "node tools/branch.mjs"

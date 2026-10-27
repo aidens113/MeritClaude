@@ -13,11 +13,15 @@ You are the lead supervisor ending a task. Do every step in order; do not skip t
    format; its `Validation` line quotes the exact command and what it printed. Update
    `Last updated` and `Status detail` in the header. If the document passed 800 lines, compact
    per the protocol before anything else.
-3. **Index.** If the document's status or scope changed, update its row in
-   `docs/working/README.md`. Run the repository's own index or structure tool instead if its
-   `AGENTS.md` documents one (for example `pnpm structure:baseline`).
+3. **Index and audit.** If `package.json` has a `structure:baseline` script, the repository's
+   structure audit owns `docs/working/README.md`: run `pnpm structure:baseline`, then
+   `pnpm structure:check`, and never run the MeritClaude audit there (its index format differs).
+   Otherwise regenerate the index with
+   `node {{MERITCLAUDE}}/tools/working-docs-audit.mjs --update`, then run it again without
+   `--update` and confirm it prints `working-docs: passed`; fix any finding it prints.
 4. **Lessons.** If the user corrected you or stated a standing preference that applies beyond
-   this repository, record it with `/lesson <global|family> <slug>`.
+   this repository, record it with `/lesson <global|family> <slug>`. If the same lesson also
+   landed in auto-memory as pinned, set `pinned: false` there so it costs one index line.
 5. **Commit.** Stage the working document with the code it describes, and only files this
    session changed. Commit with a message stating what and why. Never use `--no-verify`.
 6. **Merge or push** under Git Management in the global `AGENTS.md` and any override in the
