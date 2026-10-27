@@ -132,6 +132,17 @@ test('session-context: lists Active and Blocked working documents only', () => {
   assert.equal(empty.stdout, '');
 });
 
+test('bin/meritclaude: lists commands and forwards to them', () => {
+  const cli = (...a) => spawnSync(process.execPath, [join(REPO, 'bin', 'meritclaude.mjs'), ...a], { encoding: 'utf8' });
+  const help = cli();
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /install[\s\S]*branch[\s\S]*usage/);
+  assert.equal(cli('nope').status, 1);
+  const dry = cli('install', '--home', tmp());
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.match(dry.stdout, /Dry run/);
+});
+
 test('install: replaces retired hooks, keeps user settings, and is idempotent', () => {
   const home = tmp();
   writeFileSync(join(home, 'settings.json'), JSON.stringify({
