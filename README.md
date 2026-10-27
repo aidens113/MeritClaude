@@ -22,6 +22,9 @@ Lead supervisor (main session, Opus 5.5)
 | [AGENTS.md](AGENTS.md) | The global rules: roles, model routing, supervisor hierarchy, workflow modes, delegation, commits. Imported by `~/.claude/CLAUDE.md`. |
 | [agents/](agents/) | `supervisor`, `worker-light`, `worker`, `worker-heavy`. Each pins its model and effort in frontmatter. |
 | [hooks/](hooks/) | Enforcement and telemetry hooks (below). |
+| [skills/](skills/) | `/resume`, `/handoff`, `/lesson`, `/new-project`. Installed with this repository's path filled in. |
+| [templates/](templates/) | Project `AGENTS.md`, `CLAUDE.md`, and working-document scaffolding used by `/new-project`. |
+| [lessons/](lessons/) | Lessons recorded by `/lesson`. `global/INDEX.md` loads in every session; family indexes load where a project imports them. |
 | [tools/branch.mjs](tools/branch.mjs) | Automatic branch management: records each branch's parent, merges finished work back with checks, promotes `dev` to `main`. |
 | [tools/usage-report.mjs](tools/usage-report.mjs) | Token totals by the model each subagent actually ran on. |
 | [install.mjs](install.mjs) | Wires all of the above into `~/.claude`. |

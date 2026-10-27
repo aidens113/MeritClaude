@@ -5,13 +5,14 @@
 //   node install.mjs --apply    back up and apply
 //   node install.mjs --home <dir>   target another directory instead of ~/.claude (tests)
 //
-// It (1) points ~/.claude/CLAUDE.md at AGENTS.md, (2) copies agents/*.md into
-// ~/.claude/agents, and (3) merges settings.json: routing env vars, Sonnet effort, and the
+// It (1) points ~/.claude/CLAUDE.md at AGENTS.md and the global lessons, (2) copies agents/*.md
+// and skills/ (with the repository path filled in) into ~/.claude,
+// and (3) merges settings.json: routing env vars, Sonnet effort, and the
 // MeritClaude hooks, removing hooks that point at the retired F:/!AgentBrain scripts.
 // Re-running is safe: it replaces its own hooks instead of adding duplicates.
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = dirname(fileURLToPath(import.meta.url)).replace(/\\/g, '/');
@@ -43,7 +44,7 @@ const backup = (file) => {
   if (!existsSync(file)) return;
   const dir = join(HOME, 'backups');
   mkdirSync(dir, { recursive: true });
-  const target = join(dir, `${file.split(/[\\/]/).pop()}.${STAMP}`);
+  const target = join(dir, `${relative(HOME, file).replace(/[\\/]/g, '_')}.${STAMP}`);
   if (APPLY) copyFileSync(file, target);
   actions.push(`back up ${file} -> ${target}`);
 };
@@ -54,16 +55,30 @@ const write = (file, content) => {
   actions.push(`write ${file}`);
 };
 
-// 1. Global instructions.
-write(join(HOME, 'CLAUDE.md'),
-  `@${REPO}/AGENTS.md\n\n<!-- Written by ${REPO}/install.mjs. Edit the MeritClaude repository, not this file. -->\n`);
+// 1. Global instructions, global lessons, and where MeritClaude lives (AGENTS.md cannot know).
+write(join(HOME, 'CLAUDE.md'), [
+  `@${REPO}/AGENTS.md`,
+  `@${REPO}/lessons/global/INDEX.md`,
+  '',
+  `<MeritClaude> is \`${REPO}\`. Run its tools as \`node ${REPO}/tools/branch.mjs\`.`,
+  '',
+  `<!-- Written by ${REPO}/install.mjs. Edit the MeritClaude repository, not this file. -->`,
+  '',
+].join('\n'));
 
 // 2. Agent definitions.
 for (const name of readdirSync(join(REPO, 'agents')).filter((f) => f.endsWith('.md'))) {
   write(join(HOME, 'agents', name), readFileSync(join(REPO, 'agents', name), 'utf8'));
 }
 
-// 3. Settings.
+// 3. Skills, with {{MERITCLAUDE}} replaced by this repository's path.
+for (const name of readdirSync(join(REPO, 'skills'))) {
+  const source = join(REPO, 'skills', name, 'SKILL.md');
+  if (!existsSync(source)) continue;
+  write(join(HOME, 'skills', name, 'SKILL.md'), readFileSync(source, 'utf8').replaceAll('{{MERITCLAUDE}}', REPO));
+}
+
+// 4. Settings.
 const settingsPath = join(HOME, 'settings.json');
 const settings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) : {};
 settings.env = { ...settings.env, ...ENV };
