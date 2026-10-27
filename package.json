@@ -1,0 +1,15 @@
+{
+  "name": "meritclaude",
+  "private": true,
+  "type": "module",
+  "description": "Global Claude Code rules, tiered agents, and enforcement hooks",
+  "scripts": {
+    "test": "node --test tests/hooks.test.mjs tests/git.test.mjs",
+    "install-config": "node install.mjs",
+    "usage": "node tools/usage-report.mjs",
+    "branch": "node tools/branch.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
