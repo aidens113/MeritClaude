@@ -320,7 +320,7 @@ test('install: replaces retired hooks, keeps user settings, and is idempotent', 
   assert.equal(s.effortLevel, 'xhigh');
   assert.deepEqual(s.permissions.allow, ['Bash(git status *)']);
   assert.equal(s.modelSettings['claude-opus-5-5'].effortLevel, 'high');
-  assert.equal(s.modelSettings['claude-sonnet-5'].effortLevel, 'medium');
+  assert.equal(s.modelSettings['claude-sonnet-5-5'].effortLevel, 'medium');
   assert.doesNotMatch(JSON.stringify(s.hooks.InstructionsLoaded ?? []), /AgentBrain/, 'retired metrics hook removed');
   const commands = JSON.stringify(s.hooks);
   assert.doesNotMatch(commands, /AgentBrain/);

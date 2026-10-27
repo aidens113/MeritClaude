@@ -34,9 +34,9 @@ one are refused **(hook)**.
 
 | Agent | Model | Use for |
 | --- | --- | --- |
-| `Explore` + `model: "haiku"` | Haiku 4.5 | Read-only search fan-out. Read only its conclusion. |
-| `worker-light` | Haiku 4.5 | Run a named command and report its output, summarise logs or test output, fully specified mechanical edits (exact text, renames, formatting). |
-| `worker` | Sonnet 5 | The default. Bounded implementation from a clear brief: features, tests, fixes with a known cause, refactors, docs, run-fix-rerun loops, first-pass review. |
+| `Explore` + `model: "haiku"` | Haiku 5.5 | Read-only search fan-out. Read only its conclusion. |
+| `worker-light` | Haiku 5.5 | Run a named command and report its output, summarise logs or test output, fully specified mechanical edits (exact text, renames, formatting). |
+| `worker` | Sonnet 5.5 | The default. Bounded implementation from a clear brief: features, tests, fixes with a known cause, refactors, docs, run-fix-rerun loops, first-pass review. |
 | `worker-heavy` | Opus 5.5 | Debugging with an unknown cause, design, concurrency, security, data and migration integrity, cross-cutting changes, adversarial review of critical work, a retry after a Sonnet failure. |
 | `supervisor` | Opus 5.5 (or `model: "sonnet"` for routine workstreams) | Owning a whole workstream with its own team. |
 

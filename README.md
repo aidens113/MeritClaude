@@ -7,9 +7,9 @@ rules enforced by configuration and hooks rather than by prompt text alone.
 
 ```text
 Lead supervisor (main session, Opus 5.5)
-├── supervisor (Opus 5.5, or Sonnet 5 for routine workstreams)   ← owns one workstream
-│   ├── worker-light (Haiku 4.5)    mechanical: run a command, summarise, exact edits
-│   ├── worker       (Sonnet 5)     default: bounded implementation from a clear brief
+├── supervisor (Opus 5.5, or Sonnet 5.5 for routine workstreams)   ← owns one workstream
+│   ├── worker-light (Haiku 5.5)    mechanical: run a command, summarise, exact edits
+│   ├── worker       (Sonnet 5.5)     default: bounded implementation from a clear brief
 │   ├── worker-heavy (Opus 5.5)     unknown cause, design, security, data, critical review
 │   └── Explore + model "haiku"     read-only search
 └── workers / Explore directly, for jobs too small to need a sub-supervisor
@@ -50,8 +50,8 @@ Settings the installer applies alongside the hooks:
 
 - `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`: any agent without a model runs on Sonnet, not Opus.
 - `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2`: lead → supervisor → worker, and no deeper.
-- `modelSettings["claude-sonnet-5"].effortLevel = "medium"`, so Sonnet subagents do not inherit
-  the global `xhigh`. Haiku 4.5 does not support effort levels; Opus 5.5 stays at `high`.
+- `modelSettings["claude-sonnet-5-5"].effortLevel = "medium"`, so Sonnet subagents do not inherit
+  the global `xhigh`. Haiku and Opus keep their own settings (`worker-heavy` and `supervisor` set `high`).
 
 ## Git management
 
@@ -109,7 +109,7 @@ node tools/usage-report.mjs --since 2026-10-26
 ```
 
 After installing, start a new session and dispatch one trivial task to each tier. Then run the
-usage report: each tier should appear under its model (`claude-haiku-4-5…`, `claude-sonnet-5`,
+usage report: each tier should appear under its model (`claude-haiku-5-5`, `claude-sonnet-5-5`,
 `claude-opus-5-5`), and the report lists any tiered agent that ran on an unexpected model.
 
 ## Known limits

@@ -94,7 +94,7 @@ const ENV = {
   CLAUDE_CODE_SUBAGENT_MODEL: 'sonnet',      // agents with no model run on Sonnet, not Opus
   CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: '2', // lead -> supervisor -> worker, no deeper
 };
-const MODEL_SETTINGS = { 'claude-sonnet-5': { effortLevel: 'medium' } };
+const MODEL_SETTINGS = { 'claude-sonnet-5-5': { effortLevel: 'medium' } };
 
 const hook = (script, timeout = 10) => ({ type: 'command', command: `node "${REPO}/hooks/${script}"`, timeout });
 const HOOKS = {
