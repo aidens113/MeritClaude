@@ -9,7 +9,7 @@
 // Opt out per repository with `git config merit.auto false`.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearPrompt } from './clear-prompt.mjs';
@@ -36,7 +36,35 @@ export function repoState(cwd) {
   const notPushed = hasOrigin && hasCommits && !upstream;
   const parent = git(cwd, ['config', '--get', `branch.${branch}.meritParent`]);
   const fingerprint = createHash('sha1').update(`${git(cwd, ['rev-parse', 'HEAD'])}\n${status}`).digest('hex');
-  return { branch, parent, files: files.filter(Boolean), unpushed, notPushed, fingerprint };
+  const top = git(cwd, ['rev-parse', '--show-toplevel']) ?? cwd;
+  return { branch, parent, top, files: files.filter(Boolean), unpushed, notPushed, fingerprint };
+}
+
+// Path of a porcelain status line (renames report the new path; quoted names are unquoted).
+const linePath = (line) => line.slice(3).split(' -> ').pop().replace(/^"|"$/g, '');
+
+// Content hash of every dirty path, or a marker when it is gone or not a file. Fail-open: a path
+// that cannot be hashed gets no entry and so is never treated as unchanged.
+export function dirtyHashes(state) {
+  const out = {};
+  for (const line of state.files) {
+    const path = linePath(line);
+    const full = join(state.top, path);
+    if (!existsSync(full)) { out[path] = '<deleted>'; continue; }
+    const h = git(state.top, ['hash-object', '--', path]);
+    if (h) out[path] = h;
+  }
+  return out;
+}
+
+// Dirty lines the session itself touched: those whose content differs from the session start.
+export function sessionFiles(state, startHashes) {
+  if (!startHashes) return state.files;
+  const now = dirtyHashes(state);
+  return state.files.filter((line) => {
+    const path = linePath(line);
+    return !(path in startHashes) || now[path] === undefined || now[path] !== startHashes[path];
+  });
 }
 
 function statePath(sessionId) {
@@ -50,7 +78,7 @@ const save = (id, data) => writeFileSync(statePath(id), JSON.stringify(data));
 export function onSessionStart(input) {
   const state = repoState(input.cwd || process.cwd());
   if (!state) return '';
-  save(input.session_id, { start: state.fingerprint });
+  save(input.session_id, { start: state.fingerprint, hashes: dirtyHashes(state) });
   const push = state.notPushed ? 'not on origin' : state.unpushed ? `${state.unpushed} unpushed` : 'pushed';
   const tree = state.files.length ? `${state.files.length} uncommitted (pre-existing: commit only what you change)` : 'clean';
   return `Git (automatic management on): ${state.branch}${state.parent ? ` (parent ${state.parent})` : ''}, ${push}, tree ${tree}.`;
@@ -60,8 +88,9 @@ export function onStop(input) {
   if (input.stop_hook_active || input.agent_type) return null;
   const state = repoState(input.cwd || process.cwd());
   if (!state) return null;
-  if (!state.files.length && !state.unpushed && !state.notPushed) return null;
   const saved = load(input.session_id);
+  state.files = sessionFiles(state, saved.hashes);
+  if (!state.files.length && !state.unpushed && !state.notPushed) return null;
   if (state.fingerprint === saved.start || state.fingerprint === saved.nagged) return null;
   save(input.session_id, { ...saved, nagged: state.fingerprint });
   const lines = [`Git management is automatic (AGENTS.md). On ${state.branch}:`];

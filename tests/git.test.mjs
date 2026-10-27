@@ -220,3 +220,29 @@ test('git-checkpoint: nags once about new uncommitted or unpushed work, never ab
   assert.equal(hook('Stop'), '', 'opt-out respected');
   assert.equal(hook('SessionStart'), '');
 });
+
+test('git-checkpoint: a pre-existing dirty file untouched by the session is not reported after a commit', () => {
+  const { work } = fixture();
+  branch(work, 'init');
+  writeFileSync(join(work, 'user-wip.txt'), 'user\n');
+  const session = `p${Date.now()}`;
+  const hook = (event) => {
+    const r = spawnSync(process.execPath, [CHECKPOINT], { input: JSON.stringify({ hook_event_name: event, session_id: session, cwd: work }), encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  hook('SessionStart');
+  writeFileSync(join(work, 'a.txt'), 'agent\n');
+  git(work, 'add', 'a.txt');
+  git(work, 'commit', '-m', 'agent');
+  const first = JSON.parse(hook('Stop'));
+  assert.match(first.reason, /1 commit\(s\) not pushed/);
+  assert.doesNotMatch(first.reason, /uncommitted/, 'pre-existing file is not listed');
+  git(work, 'push');
+  assert.equal(hook('Stop'), '', 'only the pre-existing file remains dirty');
+
+  writeFileSync(join(work, 'user-wip.txt'), 'user, then agent\n');
+  assert.match(JSON.parse(hook('Stop')).reason, /uncommitted: user-wip\.txt/, 'modified during the session is reported');
+  writeFileSync(join(work, 'new.txt'), 'new\n');
+  assert.match(JSON.parse(hook('Stop')).reason, /uncommitted: .*new\.txt/, 'new file is reported');
+});
