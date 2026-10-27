@@ -10,7 +10,9 @@
 //        .claude/worktrees/<name> and leaves the current checkout alone (concurrent workstreams).
 //   node branch.mjs sync                       merge the parent into the current branch
 //   node branch.mjs finish [<branch>] [--check <cmd>] [--title <text>] [--keep]
-//   node branch.mjs promote [--from dev] [--to main] [--check <cmd>]
+//   node branch.mjs promote [--from dev] [--to main] [--check <cmd>] [--no-publish]
+//        after pushing main, publishes opted-in packages with a new version (tools/publish.mjs)
+//   node branch.mjs publish [--dry-run]        publish from main by hand (promote normally does it)
 //
 // finish: sync the parent into the branch, run --check there, merge --no-ff into the parent,
 // re-run --check on the parent (rolling the merge back locally if it fails), push the parent,
@@ -20,6 +22,7 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { publishPackages } from './publish.mjs';
 
 class Fail extends Error {}
 
@@ -270,7 +273,23 @@ const commands = {
     log(`fast-forwarded ${to} to ${from}`);
     push(to);
     push(from);
+    const published = opts['no-publish'] ? [] : publishPackages(worktrees()[0].path);
     git(['switch', start === to ? from : start]);
+    const failed = published.filter((r) => !r.ok).map((r) => r.id);
+    if (failed.length) throw new Fail(`Promoted ${from} to ${to}, but publishing failed for: ${failed.join(', ')}`);
+  },
+
+  publish(_, opts) {
+    const main = mainBranch();
+    if (!opts['dry-run']) {
+      if (current() !== main) throw new Fail(`Publish from ${main} only (or pass --dry-run); normally promote does it.`);
+      fetch();
+      if (onOrigin(main) && out(['rev-parse', main]) !== out(['rev-parse', `origin/${main}`])) {
+        throw new Fail(`${main} differs from origin/${main}; only pushed code is published.`);
+      }
+    }
+    const failed = publishPackages(worktrees()[0].path, { dryRun: opts['dry-run'] }).filter((r) => !r.ok);
+    if (failed.length) throw new Fail(`Publishing failed for: ${failed.map((r) => r.id).join(', ')}`);
   },
 };
 
@@ -278,7 +297,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const opts = {};
 const positional = [];
 for (let i = 0; i < rest.length; i++) {
-  if (rest[i] === '--keep' || rest[i] === '--worktree') opts[rest[i].slice(2)] = true;
+  if (['--keep', '--worktree', '--no-publish', '--dry-run'].includes(rest[i])) opts[rest[i].slice(2)] = true;
   else if (rest[i].startsWith('--')) opts[rest[i].slice(2)] = rest[++i];
   else positional.push(rest[i]);
 }

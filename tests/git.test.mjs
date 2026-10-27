@@ -2,7 +2,7 @@
 // bare repository as origin.   node --test tests/git.test.mjs
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -145,6 +145,49 @@ test('branch.mjs: concurrent workstreams in worktrees finish from the main check
   assert.equal(git(work, 'worktree', 'list').split(/\r?\n/).length, 1, 'worktrees removed');
   assert.deepEqual(remoteBranches(origin), ['dev', 'main']);
   assert.match(git(work, 'ls-tree', '--name-only', 'dev'), /api\.txt[\s\S]*ui\.txt/);
+});
+
+test('promote publishes opted-in packages with a new version, tags them, and reports failures', () => {
+  const { work, origin } = fixture();
+  const registry = join(dirname(work), 'registry.json');
+  const env = (extra = {}) => ({ ...process.env, MERIT_NPM_CMD: `node "${join(REPO, 'tests', 'fixtures', 'fake-npm.mjs')}"`, FAKE_REGISTRY: registry, ...extra });
+  const run = (extra, ...args) => {
+    const r = spawnSync(process.execPath, [BRANCH, ...args], { cwd: work, encoding: 'utf8', env: env(extra) });
+    return { status: r.status, out: `${r.stdout}${r.stderr}`.trim() };
+  };
+  const pkg = (path, json) => { mkdirSync(join(work, path), { recursive: true }); writeFileSync(join(work, path, 'package.json'), JSON.stringify(json)); };
+  const published = () => (existsSync(registry) ? JSON.parse(readFileSync(registry, 'utf8')) : []);
+
+  branch(work, 'init');
+  pkg('.', { name: 'root', version: '1.0.0' });
+  pkg('packages/lib', { name: '@t/lib', version: '1.0.0', publishConfig: { access: 'public' } });
+  pkg('packages/app', { name: 'app', version: '1.0.0', private: true, publishConfig: {} });
+  git(work, 'add', '.');
+  git(work, 'commit', '-m', 'packages');
+
+  const first = run({}, 'promote');
+  assert.equal(first.status, 0, first.out);
+  assert.deepEqual(published(), ['@t/lib@1.0.0'], 'only the opted-in, non-private package');
+  assert.match(git(origin, 'tag'), /@t\/lib@1\.0\.0/);
+  assert.equal(git(work, 'branch', '--show-current'), 'dev');
+
+  assert.match(run({}, 'promote').out, /@t\/lib@1\.0\.0 already on the registry; skipped/);
+  assert.match(run({}, 'publish').out, /from main only/, 'manual publish refuses non-main');
+
+  pkg('packages/lib', { name: '@t/lib', version: '1.1.0', publishConfig: { access: 'public' } });
+  git(work, 'commit', '-am', 'bump lib');
+  assert.match(run({}, 'publish', '--dry-run').out, /would publish @t\/lib@1\.1\.0/);
+  const down = run({ FAKE_DOWN: '1' }, 'promote');
+  assert.equal(down.status, 1);
+  assert.match(down.out, /could not query the registry[\s\S]*publishing failed for: @t\/lib@1\.1\.0/);
+  assert.equal(git(origin, 'rev-parse', 'main'), git(work, 'rev-parse', 'dev'), 'main still promoted');
+  const denied = run({ FAKE_FAIL: '@t/lib' }, 'publish');
+  assert.equal(denied.status, 1, 'publish from dev refused');
+  git(work, 'switch', 'main');
+  const failed = run({ FAKE_FAIL: '@t/lib' }, 'publish');
+  assert.match(failed.out, /E403[\s\S]*Publishing failed for: @t\/lib@1\.1\.0/);
+  assert.equal(run({}, 'publish').status, 0);
+  assert.deepEqual(published(), ['@t/lib@1.0.0', '@t/lib@1.1.0']);
 });
 
 test('git-checkpoint: nags once about new uncommitted or unpushed work, never about pre-existing changes', () => {

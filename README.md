@@ -64,6 +64,22 @@ node tools/branch.mjs promote --check "npm test"    # fast-forward main to dev, 
 node tools/branch.mjs status
 ```
 
+`promote` then publishes to npm every package that has `publishConfig`, is not `private`, and
+has a version not yet on the registry, and tags it `<name>@<version>`
+([tools/publish.mjs](tools/publish.mjs); pnpm repositories use `pnpm publish`). Preview with
+`node tools/branch.mjs publish --dry-run`.
+
+### npm setup on this machine
+
+1. On npmjs.com: **Access Tokens → Generate New Token → Granular Access Token** with read and
+   write access to your packages (and your org, if you publish under one) and the option to
+   bypass two-factor authentication, because automated publishes cannot answer a one-time-password
+   prompt. Note the expiry date.
+2. In your own PowerShell (keep the token out of agent sessions):
+   `[Environment]::SetEnvironmentVariable('NPM_TOKEN', '<token>', 'User')`, then restart VS Code.
+3. `~/.npmrc` contains `//registry.npmjs.org/:_authToken=${NPM_TOKEN}`, so the token itself is
+   never written to disk. Check with `npm whoami`.
+
 A failing check or a conflict leaves both branches as they were. To turn automation off for one
 repository, run `git config merit.auto false` there.
 

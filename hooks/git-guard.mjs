@@ -62,6 +62,16 @@ export function evaluate(input) {
   if (input.agent_type && /branch\.mjs\W+(init|start|sync|finish|promote)\b/.test(command)) {
     return ['deny', `Subagents (${input.agent_type}) may not manage branches; branch.mjs status is allowed. The lead supervisor creates, merges, and promotes branches.`];
   }
+  const registryWrite = command.match(/\b(npm|pnpm|yarn)(\s+npm)?\s+(publish|unpublish|deprecate|dist-tag\s+(add|rm))\b/)
+    ?? command.match(/branch\.mjs\W+publish\b/);
+  if (registryWrite && !/--dry-run\b/.test(command)) {
+    if (input.agent_type) {
+      return ['deny', `Subagents (${input.agent_type}) never publish or change registry packages; the lead publishes through branch.mjs promote.`];
+    }
+    if (!/branch\.mjs/.test(registryWrite[0])) {
+      return ['ask', 'Packages publish automatically through `branch.mjs promote` after checks pass. Approve this direct registry change only if the user asked for it.'];
+    }
+  }
   if (!/git/i.test(command)) return null;
   const invocations = findGitInvocations(command);
   if (invocations.length === 0) return null;

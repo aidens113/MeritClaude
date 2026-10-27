@@ -48,6 +48,22 @@ test('git-guard: lead may commit and push, but not bypass hooks or force-push si
   }
 });
 
+test('git-guard: registry writes go through promote', () => {
+  const check = (c, who) => decision(run('hooks/git-guard.mjs', bash(c, who)));
+  for (const c of ['npm publish', 'pnpm publish --no-git-checks', 'cd packages/x && npm publish --access public',
+    'node D:/MeritClaude/tools/branch.mjs publish', 'npm unpublish x@1.0.0', 'yarn npm publish']) {
+    assert.equal(check(c, 'worker'), 'deny', c);
+  }
+  assert.equal(check('npm publish --dry-run', 'worker'), 'allow');
+  assert.equal(check('npm install && npm test', 'worker'), 'allow');
+  assert.equal(check('npm publish'), 'ask');
+  assert.equal(check('npm deprecate x@1 "old"'), 'ask');
+  assert.equal(check('npm dist-tag add x@1.0.0 latest'), 'ask');
+  assert.equal(check('npm dist-tag ls x'), 'allow');
+  assert.equal(check('node D:/MeritClaude/tools/branch.mjs publish'), 'allow');
+  assert.equal(check('node D:/MeritClaude/tools/branch.mjs promote --check "npm test"'), 'allow');
+});
+
 test('agent-guard: routing and hierarchy', () => {
   const agent = (tool_input, agent_type) => decision(run('hooks/agent-guard.mjs', { tool_name: 'Agent', tool_input, ...(agent_type && { agent_type }) }));
   assert.equal(agent({ subagent_type: 'Explore', prompt: 'x' }), 'deny');

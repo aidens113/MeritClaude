@@ -182,9 +182,19 @@ locally and on origin, and re-parents its children.
 coherent group of features is complete, the full checks pass, and documentation is current.
 Hotfixes on `main` are merged back into `dev` first.
 
+**Publishing to npm** happens only in `promote`, after `main` is pushed. A package takes part when
+its `package.json` has `publishConfig` and is not `private`; `promote` publishes each such package
+whose version is not on the registry yet, then tags and pushes `<name>@<version>`. Nothing
+publishes from `dev` or a work branch, and only the lead publishes **(hook)**. When a change to a
+published package merges into `dev`, bump its version in the same unit: patch for fixes, minor
+for features, minor for breaking changes below 1.0, and major for breaking changes from 1.0 on,
+which needs the user's approval first. Packages build in `prepublishOnly`, and the promote check
+covers that build.
+
 **Stop and ask** only for a merge conflict you cannot resolve with confidence, force-push,
-rewriting pushed history, deleting an unmerged branch, or opening a pull request **(hook asks
-for force-push, remote deletes, and history rewrites)**. Never use `--no-verify` **(hook)**.
+rewriting pushed history, deleting an unmerged branch, opening a pull request, a major version
+bump, or any registry change outside `promote` such as unpublish or deprecate **(hook asks for
+force-push, remote deletes, history rewrites, and direct registry writes)**. Never use `--no-verify` **(hook)**.
 Never commit secrets, private data, or generated runtime state.
 
 A turn that ends with new uncommitted or unpushed work is sent back once **(hook)**: commit and
