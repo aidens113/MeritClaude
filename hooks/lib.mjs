@@ -26,6 +26,11 @@ export function blockStop(reason) {
   process.stdout.write(JSON.stringify({ decision: 'block', reason }));
 }
 
+// A non-blocking note shown to the user; never a send-back.
+export function systemMessage(text) {
+  process.stdout.write(JSON.stringify({ systemMessage: text }));
+}
+
 export function runHook(handler) {
   try {
     handler(readInput());

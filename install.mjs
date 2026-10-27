@@ -3,24 +3,92 @@
 //
 //   node install.mjs            show what would change
 //   node install.mjs --apply    back up and apply
+//   node install.mjs --check    line budgets, stale lesson indexes, and drift between this
+//                               repository and ~/.claude; exit 1 on any problem, writes nothing
+//   node install.mjs --index    regenerate lessons/*/INDEX.md from the lesson files, then exit
 //   node install.mjs --home <dir>   target another directory instead of ~/.claude (tests)
 //
 // It (1) points ~/.claude/CLAUDE.md at AGENTS.md and the global lessons, (2) copies agents/*.md
-// and skills/ (with the repository path filled in) into ~/.claude,
-// and (3) merges settings.json: routing env vars, Sonnet effort, and the
+// and skills/ (with the repository path filled in) into ~/.claude, removing the retired brain's
+// agent files, and (3) merges settings.json: routing env vars, Sonnet effort, and the
 // MeritClaude hooks, removing hooks that point at the retired F:/!AgentBrain scripts.
 // Re-running is safe: it replaces its own hooks instead of adding duplicates.
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = dirname(fileURLToPath(import.meta.url)).replace(/\\/g, '/');
 const args = process.argv.slice(2);
-const APPLY = args.includes('--apply');
+const CHECK = args.includes('--check');
+const APPLY = args.includes('--apply') && !CHECK;
 const HOME = args.includes('--home') ? args[args.indexOf('--home') + 1] : join(homedir(), '.claude');
 const STAMP = new Date().toISOString().replace(/[:.]/g, '-');
 const RETIRED = /!AgentBrain/i;
+// Agent files the retired brain installed that have no MeritClaude counterpart. Its worker.md is
+// simply replaced by MeritClaude's own.
+const RETIRED_AGENTS = ['lead.md', 'lead-xhigh.md', 'worker-low.md', 'worker-high.md'];
+
+// Line budgets for the files every session or every dispatch pays for. Growth past one is a
+// cost to justify, not drift; --check reports it.
+const BUDGETS = { agentsMd: 240, agentBody: 60, skill: 80, lesson: 40, lessonIndex: 40 };
+const GLOBAL_INTRO = [
+  'Standing preferences and corrections that apply to every repository. One line per lesson; read',
+  'the lesson file only when its line is relevant. Maintained by `/lesson`.',
+];
+
+const read = (file) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+const lineCount = (text) => text.split('\n').filter((line, i, all) => !(i === all.length - 1 && line === '')).length;
+const subdirs = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort() : []);
+const mdFiles = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
+
+// --- lesson indexes ----------------------------------------------------------------------------
+
+function frontmatter(text) {
+  const match = /^---\n([\s\S]*?)\n---/.exec(text);
+  const out = {};
+  for (const line of match ? match[1].split('\n') : []) {
+    const i = line.indexOf(':');
+    if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^"(.*)"$/, '$1');
+  }
+  return out;
+}
+
+const lessonScopes = () => subdirs(join(REPO, 'lessons'));
+
+// The lines above the first entry: an existing index's own `# ` heading and intro are kept, so a
+// family can describe itself; otherwise a default heading (plus the intro, for global).
+function indexHead(scope) {
+  const file = join(REPO, 'lessons', scope, 'INDEX.md');
+  const lines = existsSync(file) ? read(file).split('\n') : [];
+  if (lines[0]?.startsWith('# ')) {
+    const end = lines.findIndex((l) => l.startsWith('- '));
+    const head = lines.slice(0, end === -1 ? lines.length : end);
+    while (head.at(-1) === '') head.pop();
+    return [...head, ''];
+  }
+  return scope === 'global' ? ['# Global lessons', '', ...GLOBAL_INTRO, ''] : [`# Lessons for the ${scope} family`, ''];
+}
+
+// One line per lesson: `- [<first # heading>](<slug>.md): <frontmatter description>`.
+function buildIndex(scope) {
+  const dir = join(REPO, 'lessons', scope);
+  const out = indexHead(scope);
+  for (const file of mdFiles(dir).filter((f) => f !== 'INDEX.md')) {
+    const text = read(join(dir, file));
+    const body = text.replace(/^---\n[\s\S]*?\n---\n?/, '');
+    const title = /^# (.+)$/m.exec(body)?.[1].trim() ?? file.replace(/\.md$/, '');
+    out.push(`- [${title}](${file}): ${frontmatter(text).description ?? ''}`);
+  }
+  out.push('');
+  return out.join('\n');
+}
+
+if (args.includes('--index')) {
+  for (const scope of lessonScopes()) writeFileSync(join(REPO, 'lessons', scope, 'INDEX.md'), buildIndex(scope));
+  console.log(`Lesson indexes written for: ${lessonScopes().join(', ') || 'none'}`);
+  process.exit(0);
+}
 
 const ENV = {
   CLAUDE_CODE_SUBAGENT_MODEL: 'sonnet',      // agents with no model run on Sonnet, not Opus
@@ -37,15 +105,15 @@ const HOOKS = {
   SubagentStop: [{ hooks: [hook('report-guard.mjs'), hook('usage-ledger.mjs', 15)] }],
   SessionStart: [{ matcher: 'startup|clear|compact|resume', hooks: [hook('session-context.mjs'), hook('git-checkpoint.mjs')] }],
   Stop: [{ hooks: [hook('git-checkpoint.mjs')] }],
+  InstructionsLoaded: [{ hooks: [hook('instruction-metrics.mjs', 5)] }],
 };
 
 const actions = [];
 const backup = (file) => {
   if (!existsSync(file)) return;
   const dir = join(HOME, 'backups');
-  mkdirSync(dir, { recursive: true });
   const target = join(dir, `${relative(HOME, file).replace(/[\\/]/g, '_')}.${STAMP}`);
-  if (APPLY) copyFileSync(file, target);
+  if (APPLY) { mkdirSync(dir, { recursive: true }); copyFileSync(file, target); }
   actions.push(`back up ${file} -> ${target}`);
 };
 const write = (file, content) => {
@@ -69,6 +137,13 @@ write(join(HOME, 'CLAUDE.md'), [
 // 2. Agent definitions.
 for (const name of readdirSync(join(REPO, 'agents')).filter((f) => f.endsWith('.md'))) {
   write(join(HOME, 'agents', name), readFileSync(join(REPO, 'agents', name), 'utf8'));
+}
+for (const name of RETIRED_AGENTS) {
+  const file = join(HOME, 'agents', name);
+  if (!existsSync(file)) continue;
+  backup(file);
+  if (APPLY) unlinkSync(file);
+  actions.push(`remove retired agent ${file}`);
 }
 
 // 3. Skills, with {{MERITCLAUDE}} replaced by this repository's path.
@@ -99,6 +174,43 @@ for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
 for (const [event, groups] of Object.entries(HOOKS)) hooks[event] = [...(hooks[event] ?? []), ...groups];
 settings.hooks = hooks;
 write(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+
+if (CHECK) {
+  const problems = [];
+  const over = (label, text, limit) => {
+    const n = lineCount(text);
+    if (n > limit) problems.push(`${label}: ${n} lines exceeds the ${limit}-line budget`);
+  };
+  over('AGENTS.md', read(join(REPO, 'AGENTS.md')), BUDGETS.agentsMd);
+  for (const file of mdFiles(join(REPO, 'agents'))) {
+    over(`agents/${file} (body)`, read(join(REPO, 'agents', file)).replace(/^---\n[\s\S]*?\n---\n?/, ''), BUDGETS.agentBody);
+  }
+  for (const skill of subdirs(join(REPO, 'skills'))) {
+    const file = join(REPO, 'skills', skill, 'SKILL.md');
+    if (existsSync(file)) over(`skills/${skill}/SKILL.md`, read(file), BUDGETS.skill);
+    else problems.push(`skills/${skill}/SKILL.md is missing`);
+  }
+  for (const scope of lessonScopes()) {
+    const dir = join(REPO, 'lessons', scope);
+    for (const file of mdFiles(dir).filter((f) => f !== 'INDEX.md')) over(`lessons/${scope}/${file}`, read(join(dir, file)), BUDGETS.lesson);
+    const index = join(dir, 'INDEX.md');
+    if (!existsSync(index) || read(index) !== buildIndex(scope)) {
+      problems.push(`lessons/${scope}/INDEX.md is stale; run: node install.mjs --index`);
+    } else {
+      over(`lessons/${scope}/INDEX.md`, read(index), BUDGETS.lessonIndex);
+    }
+  }
+  for (const action of actions.filter((a) => !a.startsWith('back up '))) {
+    problems.push(`drift: would ${action}; run: node install.mjs --apply`);
+  }
+  if (problems.length) {
+    console.error(`MeritClaude check failed (${HOME}):`);
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exit(1);
+  }
+  console.log(`MeritClaude check passed: ${HOME}`);
+  process.exit(0);
+}
 
 console.log(`${APPLY ? 'Applied' : 'Dry run (pass --apply to make these changes)'}: ${HOME}`);
 console.log(actions.length ? actions.map((a) => `- ${a}`).join('\n') : '- nothing to change');

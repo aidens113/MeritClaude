@@ -12,7 +12,10 @@ You are the lead supervisor starting a task. Spend context only on what this tas
    focused edit, set the repository up with `/new-project` before planning.
 3. If `$ARGUMENTS` names a document, read its `## Current State` section only, stopping at the
    first `---` after it. Otherwise choose the document whose scope matches the user's request;
-   if none matches, say which document you will create.
+   if none matches, say which document you will create from
+   `{{MERITCLAUDE}}/templates/working-doc.md`, then add it to the index with
+   `pnpm structure:baseline` if `package.json` has that script, otherwise
+   `node {{MERITCLAUDE}}/tools/working-docs-audit.mjs --update`.
 4. Check the branch: `node {{MERITCLAUDE}}/tools/branch.mjs status`. Start or switch to the
    right branch for the work under Git Management before editing.
 5. Declare `Mode: <mode>` per `AGENTS.md`, then begin. Read ledgers, archives, deeper sections,

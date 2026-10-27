@@ -92,6 +92,23 @@ repository's `agent-working-doc-protocol.md` defines their format.
 - Only the lead edits `Current State` and the `Work Ledger`; everyone else writes their own
   report file.
 - Commit working-document updates with the work that changed them.
+- A ledger `Validation` line quotes the command and its observed output.
+
+**Lifecycle.** The lead starts a task with `/resume` and ends it with `/handoff`, then `/clear`.
+
+## Memory Tiers
+
+| Tier | Where | Holds |
+| --- | --- | --- |
+| Global | `<MeritClaude>/AGENTS.md`, `<MeritClaude>/lessons/global/` | True in every project |
+| Family | `<MeritClaude>/lessons/<family>/`, imported by the project's `CLAUDE.md` | True across a group of repositories |
+| Project | `AGENTS.md`, `docs/architecture/`, `docs/working/` | True for anyone who clones |
+| Local | `~/.claude/projects/<slug>/memory/`, `CLAUDE.local.md` | This machine only |
+| Task | The brief; its report file | This task only |
+
+Place a fact by asking in order: true elsewhere? Global, or family. True for every clone?
+Project. This machine? Local. This task? Task. A lesson that generalises goes into MeritClaude
+with `/lesson` as well as wherever the harness put it.
 
 ## Workflow Modes
 
@@ -120,7 +137,9 @@ Delegate when the task needs more than about five files read whose content you w
 afterwards, when a run-fix-rerun loop is expected, when edits are bulk and partition by file, or
 when independent pieces touch no common file. Keep with yourself one- or two-file edits you
 already understand, verification of claims from below, integration, conflict resolution, and
-anything that needs the user's conversation.
+anything that needs the user's conversation. Reads are the cost: route discovery through
+`Explore` or a worker and read the conclusion, not the files. Dispatch in the foreground when
+you need the result to continue; a background agent's completion does not wake a sub-supervisor.
 
 Briefs are at most 40 lines: goal, owned paths, must-not-touch paths, the context files to read,
 acceptance checks to run, and the report path. Run independent agents in parallel in one

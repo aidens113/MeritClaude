@@ -31,7 +31,10 @@ branches.
   context files, acceptance checks, report path
   `reports/<your-label>/<worker-label>.md` under the working document's
   directory (or the path your brief gives).
-- Dispatch independent workers in parallel in one message.
+- Dispatch independent workers in parallel in one message. Dispatch with
+  `run_in_background: false` whenever you need the result before continuing:
+  a background worker's completion reaches the lead session, not you, and
+  you cannot wait across a hand-back.
 - Escalate a capability failure once to the next tier with the failed
   report attached; fix a thin brief and retry at the same tier.
 
