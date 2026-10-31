@@ -13,3 +13,7 @@
 Validation: all 51 tests passed with `npm test`; the focused installer suite passed all nine
 tests after final link-resolution changes. `npm pack --dry-run` confirmed the new CLI,
 CODEX.md, and Codex template are packaged. No live Codex model invocation was run.
+
+Release status: merged and pushed to dev and main. Automatic npm publication failed with
+EOTP because the registry requires interactive authentication. Version 0.2.0 is not published;
+until authenticated publication succeeds, use this checkout's `node install.mjs --codex --apply`.
