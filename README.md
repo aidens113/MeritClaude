@@ -1,19 +1,47 @@
 # MeritPrompts
 
-Shared agent rules for Claude Code and Codex, with Claude-specific agent definitions and hooks.
-In Claude Code, one Opus 5.5 lead supervisor owns the high-level work and
-delegates to teams that run on the cheapest model that will reliably finish each task, with the
-rules enforced by configuration and hooks rather than by prompt text alone.
+Shared working rules for **Claude Code and Codex**: supervisor/worker roles, scoped delegation,
+working documents, reusable lessons, validation, and automatic git management. Each runtime
+has its own guide, model routing, and installation path.
 
-```text
-Lead supervisor (main session, Opus 5.5)
-├── supervisor (Opus 5.5, or Sonnet 5.5 for routine workstreams)   ← owns one workstream
-│   ├── worker-light (Haiku 5.5)    mechanical: run a command, summarise, exact edits
-│   ├── worker       (Sonnet 5.5)     default: bounded implementation from a clear brief
-│   ├── worker-heavy (Opus 5.5)     unknown cause, design, security, data, critical review
-│   └── Explore + model "haiku"     read-only search
-└── workers / Explore directly, for jobs too small to need a sub-supervisor
-```
+## Runtime support
+
+| Capability | Claude Code | Codex |
+| --- | --- | --- |
+| Shared policy | [AGENTS.md](AGENTS.md) | [AGENTS.md](AGENTS.md) |
+| Runtime guide | [CLAUDE.md](CLAUDE.md) | [CODEX.md](CODEX.md) |
+| Global instructions | Imports shared policy, Claude guide, and lessons through `~/.claude/CLAUDE.md` | Snapshot of shared policy, Codex guide, and lessons in `$CODEX_HOME/AGENTS.md` (default `~/.codex`) |
+| Worker setup | Installed agent definitions pin Claude models and effort | Routing instructions use available Codex agent controls; no worker definitions installed |
+| Enforcement | Hooks for model routing, hierarchy, reports, and git | Shared policy followed through Codex tools; no enforcement hooks installed |
+| Handoffs and lessons | `/resume`, `/handoff`, `/lesson`, `/new-project` skills | Read and update working documents and lessons directly |
+| Telemetry | Subagent token ledger and instruction-file metrics | No telemetry installed |
+| Shared tools | Branch management, publishing, working-document audit | Same tools |
+
+## Model routing
+
+| Responsibility | Claude Code | Codex |
+| --- | --- | --- |
+| Lead supervisor | Opus 5.5 | `gpt-6.1-sol` / Max |
+| Sub-supervisor | Opus 5.5; Sonnet 5.5 for routine workstreams | `gpt-6.1-sol` / High |
+| Discovery and mechanical work | Explore with Haiku; worker-light on Haiku 5.5 | `gpt-6-luna` / High |
+| Implementation and tests | worker on Sonnet 5.5 / Medium | `gpt-6.1-sol` / Medium |
+| Difficult debugging and critical review | worker-heavy on Opus 5.5 / High | `gpt-6.1-sol` / Max |
+| Visual inspection and writing | Assign the appropriate Claude worker tier | `gpt-6.1-terra` / Medium |
+
+**Codex ceiling: GPT-6.1 Sol Max. Astra is prohibited for every role, fallback, and review.**
+Runtime guides contain escalation and availability rules. Explicit user selections and runtime
+restrictions apply. Select the lead using the client's model controls; installing instructions
+does not change the running model.
+
+## Shared workflow
+
+The lead owns the user's intent, scoped briefs, integration, verification, and mutating git
+operations. Workers return reports and never commit. The lead verifies those reports before
+integrating the work. Use sub-supervisors only for workstreams large enough to need a team.
+
+In projects with `docs/working/`, read the handoff and relevant `Current State` before work,
+record decisions and observed checks, and update the handoff when finished. Claude skills
+assist this lifecycle; Codex performs the same document work directly.
 
 ## Contents
 
@@ -21,30 +49,27 @@ AGENTS.md contains runtime-neutral policy. [CLAUDE.md](CLAUDE.md) owns Claude mo
 hooks, imports, commands, and memory paths; [CODEX.md](CODEX.md) owns Codex configuration and
 instruction loading. The Claude installer imports shared policy plus CLAUDE.md; the Codex
 snapshot includes shared policy plus CODEX.md, with no Claude model-routing instructions.
-The Claude model
-tiers and hooks below apply to Claude Code. Codex routing defaults are GPT-6.1 Sol Max for the
-lead and heavy workers, Sol Medium for implementation, Sol High for sub-supervisors, Luna High
-for mechanical work, and Terra Medium for visual/writing tasks. Exact IDs, escalation, model
-selection commands, and availability fallbacks live in [CODEX.md](CODEX.md). Sol Max is the
-ceiling; Astra is prohibited for every Codex role. These instructions
-do not change the running model or overwrite Codex configuration.
+The model guides remain separate; shared policy does not embed either runtime's configuration.
 
 | Path | What it is |
 | --- | --- |
-| [AGENTS.md](AGENTS.md) | The global rules: roles, model routing, supervisor hierarchy, workflow modes, delegation, commits. Imported by `~/.claude/CLAUDE.md`. |
+| [AGENTS.md](AGENTS.md) | Shared roles, workflow, delegation, memory, validation, and git policy for both runtimes. |
+| [CLAUDE.md](CLAUDE.md) | Claude models, agents, hooks, imports, commands, and local memory. |
 | [CODEX.md](CODEX.md) | Codex runtime adaptations, referenced explicitly by AGENTS.md and included in the Codex install. |
-| [agents/](agents/) | `supervisor`, `worker-light`, `worker`, `worker-heavy`. Each pins its model and effort in frontmatter. |
-| [hooks/](hooks/) | Enforcement and telemetry hooks (below). |
-| [skills/](skills/) | `/resume`, `/handoff`, `/lesson`, `/new-project`. Installed with this repository's path filled in. |
-| [templates/](templates/) | Project `AGENTS.md`, `CLAUDE.md`, and working-document scaffolding used by `/new-project`. |
-| [lessons/](lessons/) | Lessons recorded by `/lesson`. `global/INDEX.md` loads in every session; family indexes load where a project imports them. |
+| [agents/](agents/) | Claude `supervisor`, `worker-light`, `worker`, `worker-heavy` definitions with pinned models and effort. |
+| [hooks/](hooks/) | Claude enforcement and telemetry hooks (below). |
+| [skills/](skills/) | Claude `/resume`, `/handoff`, `/lesson`, `/new-project` skills with this checkout's path filled in. |
+| [templates/](templates/) | Project `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, briefs, reports, and working-document scaffolding. |
+| [lessons/](lessons/) | Shared global and family lessons; Claude imports indexes and Codex reads relevant lesson files explicitly. |
 | [tools/branch.mjs](tools/branch.mjs) | Automatic branch management: records each branch's parent, merges finished work back with checks, promotes `dev` to `main`. |
-| [tools/usage-report.mjs](tools/usage-report.mjs) | Token totals by the model each subagent actually ran on. |
+| [tools/usage-report.mjs](tools/usage-report.mjs) | Claude subagent token totals by actual model. |
 | [tools/working-docs-audit.mjs](tools/working-docs-audit.mjs) | Audits and regenerates `docs/working/` in repositories without a structure audit of their own (`--update` rewrites the index). |
-| [install.mjs](install.mjs) | Wires all of the above into `~/.claude`; `--check` reports size budgets, stale lesson indexes, and drift; `--index` regenerates the lesson indexes. |
-| [tests/](tests/) | Runs every hook as Claude Code does, plus the installer against a temp home. |
+| [install.mjs](install.mjs) | Installs Claude configuration or a Codex snapshot with `--codex`; checks drift and regenerates lesson indexes. |
+| [tests/](tests/) | Claude hooks, both installers, git/release tools, and document audits using throwaway fixtures. |
 
-## Hooks
+## Claude Code hooks and settings
+
+These hooks and settings apply only to Claude Code.
 
 | Hook | Event | Does |
 | --- | --- | --- |
@@ -66,7 +91,7 @@ Settings the installer applies alongside the hooks:
 - `modelSettings["claude-sonnet-5-5"].effortLevel = "medium"`, so Sonnet subagents do not inherit
   the global `xhigh`. Haiku and Opus keep their own settings (`worker-heavy` and `supervisor` set `high`).
 
-## Git management
+## Git management for both runtimes
 
 Git is automatic by default (see [AGENTS.md](AGENTS.md#git-management-automatic)). `main` is
 stable, `dev` is integration, and each work branch records its parent in
@@ -87,7 +112,7 @@ has a version not yet on the registry, and tags it `<name>@<version>`
 ([tools/publish.mjs](tools/publish.mjs); pnpm repositories use `pnpm publish`). Preview with
 `node tools/branch.mjs publish --dry-run`.
 
-### npm setup on this machine
+### npm release setup
 
 1. On npmjs.com: **Access Tokens → Generate New Token → Granular Access Token** with read and
    write access to your packages (and your org, if you publish under one) and the option to
@@ -98,24 +123,36 @@ has a version not yet on the registry, and tags it `<name>@<version>`
 3. `~/.npmrc` contains `//registry.npmjs.org/:_authToken=${NPM_TOKEN}`, so the token itself is
    never written to disk. Check with `npm whoami`.
 
-A failing check or a conflict leaves both branches as they were. To turn automation off for one
-repository, run `git config merit.auto false` there.
+A failed merge check rolls back the local merge. Publication happens after branch pushes, so
+an npm authentication failure does not undo promotion. To promote without a release, use
+`node tools/branch.mjs promote --no-publish --check "npm test"`. To opt a repository out of
+automatic git management, run `git config merit.auto false` there.
 
 ## Install
+
+Requires Node.js 22 or later. Run these commands from the checkout. Both installers preview
+changes by default, back up replaced files when applying, and can be rerun safely.
+
+### Claude Code
 
 ```bash
 node install.mjs            # dry run: lists every change
 node install.mjs --apply    # backs up to ~/.claude/backups/, then applies
 node install.mjs --check    # budgets, stale lesson indexes, drift; exit 1 on any problem
-node install.mjs --index    # regenerate lessons/*/INDEX.md after editing a lesson
-node install.mjs --codex          # preview Codex global instruction snapshot
-node install.mjs --codex --apply  # back up and install into $CODEX_HOME or ~/.codex
-node install.mjs --codex --check  # check Codex snapshot drift without writing
 ```
 
 The installer copies the agent files rather than linking them, so re-run it after editing
-`agents/`. Edits to `AGENTS.md` and `hooks/` take effect immediately because Claude Code reads
-them from this repository. Re-running is idempotent.
+`agents/` or `skills/`. Shared rules, the Claude guide, and hooks are read from this checkout;
+keep it available at its installed path.
+
+### Codex
+
+```bash
+node install.mjs --codex          # preview Codex global instruction snapshot
+node install.mjs --codex --apply  # back up and install into CODEX_HOME or ~/.codex
+node install.mjs --codex --check  # check Codex snapshot drift without writing
+codex -m gpt-6.1-sol              # select Max effort through /model
+```
 
 Codex installation writes only `AGENTS.md` in its home, combining the shared policy, Codex
 adapter, and global lesson index. It leaves `config.toml`, credentials, skills, and agent
@@ -125,26 +162,55 @@ present, takes precedence and is preserved. Project templates include a `CODEX.m
 in `AGENTS.md`; Codex does not automatically discover `CODEX.md` or expand Claude imports.
 See [official instruction discovery documentation](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
+The routing table is guidance for dispatch through available agent controls. Installation does
+not register worker agents or switch the running lead model. Select GPT-6.1 Sol and Max effort
+in the CLI, app, or IDE before starting work.
+
+### Shared maintenance
+
+Refresh lesson indexes after editing lesson files:
+
+```bash
+node install.mjs --index
+```
+
 The repository and npm CLI are now named `MeritPrompts` / `meritprompts` (previously
 `MeritClaude` / `meritclaude`). The remote is `https://github.com/aidens113/MeritPrompts.git`.
 Existing local checkout directories can keep their names; installation uses the actual path.
-Install with `npm install -g meritprompts`; use `meritprompts install --codex --apply` for Codex
-or `meritprompts install --apply` for Claude Code. Re-run the installer after migrating.
+This version's npm publication is blocked by registry authentication; use the checkout commands
+above until it is published. The packaged CLI forwards `meritprompts install --codex --apply`
+for Codex and `meritprompts install --apply` for Claude Code.
 
 ## Verify
 
 ```bash
-npm test        # hooks, installer, and branch automation against throwaway repositories
-node tools/usage-report.mjs --since 2026-10-26
+npm test        # both installers, Claude hooks, git/release tools, and document audits
+node tools/working-docs-audit.mjs
 ```
 
-After installing, start a new session and dispatch one trivial task to each tier. Then run the
-usage report: each tier should appear under its model (`claude-haiku-5-5`, `claude-sonnet-5-5`,
-`claude-opus-5-5`), and the report lists any tiered agent that ran on an unexpected model.
+Tests use throwaway homes and repositories. They check Codex configuration preservation,
+Sol Max routing, and exclusion of Claude routing from Codex snapshots. They do not invoke paid
+models or prove live agent dispatch.
+
+For Claude, start a new session and dispatch a trivial task to each tier. Run the usage report
+and confirm each tier used its configured model:
+
+```bash
+node tools/usage-report.mjs --since 2026-10-30
+```
+
+For Codex, run the snapshot drift check, start a new session, and inspect the active shared
+policy and Codex guide. Confirm GPT-6.1 Sol at Max through the client's model controls. Check
+actual worker selection through the runtime when delegation is available; the Claude usage
+report does not measure Codex sessions.
 
 ## Known limits
 
-- Hook inputs carry no model field, so the usage ledger reads the subagent's transcript.
+- Codex support provides instructions and shared tools; it does not install Claude hooks,
+  telemetry, slash skills, or agent definitions into Codex.
+- Codex instructions are copied snapshots; Claude instruction imports point to this checkout.
+
+- Claude hook inputs carry no model field, so the usage ledger reads the subagent's transcript.
   Input and cache tokens are exact. Transcripts record output tokens only when streaming
   starts, so output is estimated from the content written (`output_est`, about 4 characters
   per token).
