@@ -1,7 +1,7 @@
 # MeritPrompts
 
 Shared agent rules for Claude Code and Codex, with Claude-specific agent definitions and hooks.
-It replaces the retired `F:/!AgentBrain` brain. In Claude Code, one Opus 5.5 lead supervisor owns the high-level work and
+In Claude Code, one Opus 5.5 lead supervisor owns the high-level work and
 delegates to teams that run on the cheapest model that will reliably finish each task, with the
 rules enforced by configuration and hooks rather than by prompt text alone.
 
@@ -150,23 +150,3 @@ usage report: each tier should appear under its model (`claude-haiku-5-5`, `clau
   per token).
 - `git-guard` parses commands heuristically. It catches `git` inside `bash -c "..."`, at the
   cost of occasionally denying quoted text such as `echo "git is ..."` from a subagent.
-
-## Migrated from F:/!AgentBrain
-
-The retired brain's content lives here now; `F:/!AgentBrain` stays on disk only as history.
-
-- **Global rules**: roles and delegation were already here; the memory tiers, the lifecycle
-  (`/resume`, `/handoff`, `/clear`), quoted ledger validation, and "reads are the cost" were
-  added to [AGENTS.md](AGENTS.md).
-- **Lessons**: every global and `fluxiq` lesson, except two superseded by this repository:
-  `workers-run-on-opus-5` (replaced by Model Routing) and `supervisor-and-worker-agent-roles`
-  (replaced by Agent Roles). FluxIQ repositories import `lessons/fluxiq/INDEX.md`.
-- **Agents**: `lead`/`lead-xhigh` became `supervisor` (which gained the foreground-dispatch rule);
-  `worker-low`/`worker`/`worker-high` became `worker-light`/`worker`/`worker-heavy`. The installer
-  backs up and removes the four retired agent files from `~/.claude/agents`.
-- **Hooks**: `session-pointer` merged into `session-context`; `worker-git-guard` and
-  `worker-report-guard` merged into `git-guard` and `report-guard`; `handoff-reminder` and
-  `clear-prompt` folded into `git-checkpoint`'s Stop path; `instruction-metrics` ported.
-- **Tools and templates**: `working-docs-audit.mjs`, the installer's `--check` and `--index`, and
-  the brief, worker-report, and working-doc templates. `/handoff` and `/resume` use a
-  repository's own `pnpm structure:baseline` where it has one, since that owns the index there.
