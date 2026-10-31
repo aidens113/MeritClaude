@@ -75,6 +75,9 @@ test('Codex install previews, backs up, preserves config, checks drift and is id
   assert.match(installed, /First lesson/);
   assert.doesNotMatch(installed, /Opus|Sonnet|Haiku|Fable|model: "haiku"/,
     'Codex guidance must not inherit Claude model routing');
+  assert.doesNotMatch(installed, /gpt-6-astra/, 'Astra must not appear as a selectable Codex model');
+  assert.match(installed, /Lead supervisor \| `gpt-6\.1-sol` \| `max`/);
+  assert.match(installed, /Heavy worker \| `gpt-6\.1-sol` \| `max`/);
   assert.match(installed, /tools\/branch.mjs/);
   assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/lessons/global/a-first.md`));
   assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/CODEX.md`));

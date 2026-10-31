@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Set the Codex ceiling to GPT-6.1 Sol Max. Lead and heavy work use Sol Max; escalation
+  stays within Sol reasoning levels. Astra is prohibited for all roles and fallbacks.
+  Validation: all 52 tests passed; installer assertions verify the Sol Max lead/heavy roles
+  and reject the Astra model ID in installed instructions.
+
 - Added concrete Codex model IDs, reasoning efforts, role assignments, selection commands,
   and escalation/availability rules, verified against official documentation on 2026-10-30.
   Validation: `npm test` passed all 52 tests after the routing update; no model calls were run.
