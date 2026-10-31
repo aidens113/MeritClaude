@@ -2,6 +2,47 @@
 
 Read AGENTS.md for shared policy. This guide applies only to Codex sessions.
 
+## Model routing
+
+These are MeritPrompts defaults, chosen for this repository's supervisor/worker workflow.
+Model IDs and supported selection controls were checked against official OpenAI documentation
+on 2026-10-30. Respect an explicit user model choice over these defaults.
+
+| Role | Model ID | Reasoning effort | Assignments |
+| --- | --- | --- | --- |
+| Lead supervisor | `gpt-6-astra` | `high` | Planning, delegation, integration, final verification, and git management. |
+| Sub-supervisor | `gpt-6.1-sol` | `high` | Own a bounded workstream; use Astra for architecture, security, or data integrity. |
+| Discovery / light worker | `gpt-6-luna` | `high` | Read-only searches, named commands, log summaries, and fully specified mechanical edits. |
+| Standard worker | `gpt-6.1-sol` | `medium` | Features, tests, known-cause fixes, refactors, and first-pass review. |
+| Heavy worker | `gpt-6-astra` | `high` | Unknown-cause debugging, concurrency, migrations, security, and critical review. |
+| Visual / writing worker | `gpt-6.1-terra` | `medium` | Screenshot interpretation, UI inspection, supplied-material writing, and scoped UI fixes. |
+
+**Dispatch.** State the role, exact model ID, and effort in each brief. Set model and effort
+explicitly through the runtime's agent controls when those controls are exposed. Role names
+above are responsibilities, not registered Codex agent types. Do not use Claude agent files.
+
+**Escalation.** For coding failures, move Luna or Terra -> Sol -> Astra, once per tier, with
+the failed report and observed checks. If Astra needs deeper analysis, raise effort to `xhigh`
+once with a revised brief. Avoid `max` or `ultra` by default. Fix an inadequate brief before
+spending more reasoning on it. The lead verifies every returned claim itself.
+
+**Availability.** Check the models and efforts exposed by the current runtime before dispatch.
+If Luna or Terra is unavailable, use Sol. If Astra is unavailable, use Sol at `high` and report
+the missing review tier. If Sol is unavailable, retain the configured model and state the
+limitation; never silently route critical work to Luna. Runtime restrictions on delegation or
+model overrides take precedence. Do not claim that this file changes the running lead's model.
+
+**Select the lead.** Launch `codex -m gpt-6-astra`, then use `/model` to select High effort.
+For routine work, launch `codex -m gpt-6.1-sol` and select Medium. In the app or IDE, use its
+model and reasoning picker. Terra requires Codex CLI 0.159.0 or later. The installer writes
+instructions only; it preserves config.toml and does not register or configure worker agents.
+
+Sources: [OpenAI models](https://learn.chatgpt.com/docs/models) and
+[model selection](https://learn.chatgpt.com/docs/model-selection). The role assignments and
+escalation sequence above are repository policy, not OpenAI-mandated mappings.
+
+## Runtime behavior
+
 - The lead is the current Codex session and configured model. Use only models and agent tools
   exposed by the current runtime; do not invent model mappings or load another runtime's agent
   definitions. Keep the configured model when a suitable cheaper model is unavailable.
@@ -19,7 +60,7 @@ Read AGENTS.md for shared policy. This guide applies only to Codex sessions.
   <MeritPrompts>/lessons/ and regenerate indexes with node <MeritPrompts>/install.mjs --index.
   Keep local-only memory in the runtime-provided location; never commit it.
 
-When editing MeritPrompts itself:
+## Maintaining MeritPrompts
 
 - Hooks are dependency-free Node ESM, export decision functions for tests, and fail open.
 - Validate with `npm test`; tests use throwaway homes and MERIT_USAGE_LOG paths.

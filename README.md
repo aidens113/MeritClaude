@@ -22,7 +22,11 @@ hooks, imports, commands, and memory paths; [CODEX.md](CODEX.md) owns Codex conf
 instruction loading. The Claude installer imports shared policy plus CLAUDE.md; the Codex
 snapshot includes shared policy plus CODEX.md, with no Claude model-routing instructions.
 The Claude model
-tiers and hooks below apply to Claude Code; Codex uses its configured models and tools.
+tiers and hooks below apply to Claude Code. Codex routing defaults are Astra High for the
+lead and heavy workers, Sol Medium for implementation, Sol High for sub-supervisors, Luna High
+for mechanical work, and Terra Medium for visual/writing tasks. Exact IDs, escalation, model
+selection commands, and availability fallbacks live in [CODEX.md](CODEX.md). These instructions
+do not change the running model or overwrite Codex configuration.
 
 | Path | What it is |
 | --- | --- |

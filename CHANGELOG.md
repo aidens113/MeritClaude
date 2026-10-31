@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added concrete Codex model IDs, reasoning efforts, role assignments, selection commands,
+  and escalation/availability rules, verified against official documentation on 2026-10-30.
+  Validation: `npm test` passed all 52 tests after the routing update; no model calls were run.
+
 - Separated runtime-neutral AGENTS.md policy from Claude routing, hooks, commands, and local
   memory in CLAUDE.md, and Codex tools and instruction loading in CODEX.md.
 - Claude installation now imports its runtime guide explicitly; Codex snapshots exclude
