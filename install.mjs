@@ -157,6 +157,7 @@ if (CODEX) {
 // 1. Global instructions, global lessons, and where MeritPrompts lives (AGENTS.md cannot know).
 write(join(HOME, 'CLAUDE.md'), [
   `@${REPO}/AGENTS.md`,
+  `@${REPO}/CLAUDE.md`,
   `@${REPO}/lessons/global/INDEX.md`,
   '',
   `<MeritPrompts> is \`${REPO}\`. Run its tools as \`node ${REPO}/tools/branch.mjs\`.`,

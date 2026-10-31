@@ -17,7 +17,11 @@ Lead supervisor (main session, Opus 5.5)
 
 ## Contents
 
-Codex uses the shared policy with [CODEX.md](CODEX.md) runtime adaptations. The Claude model
+AGENTS.md contains runtime-neutral policy. [CLAUDE.md](CLAUDE.md) owns Claude model routing,
+hooks, imports, commands, and memory paths; [CODEX.md](CODEX.md) owns Codex configuration and
+instruction loading. The Claude installer imports shared policy plus CLAUDE.md; the Codex
+snapshot includes shared policy plus CODEX.md, with no Claude model-routing instructions.
+The Claude model
 tiers and hooks below apply to Claude Code; Codex uses its configured models and tools.
 
 | Path | What it is |

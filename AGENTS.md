@@ -1,28 +1,28 @@
 # Agent Instructions (global)
 
-These rules govern Claude Code and Codex sessions on this machine. They are imported by
-`~/.claude/CLAUDE.md` and adapted from SwitchYardRouter's `AGENTS.md`. A repository's own
-`AGENTS.md` or `CLAUDE.md` adds project rules (layout, checks, push authority) and wins where
-the two conflict. Hooks enforce rules marked **(hook)** in Claude Code only.
-Codex: read [CODEX.md](CODEX.md) for runtime adaptations, which override Claude-specific
-assumptions below. Claude Code: read [CLAUDE.md](CLAUDE.md). Install Codex global rules with
-`node <MeritPrompts>/install.mjs --codex --apply` before starting a new session.
+These shared rules apply to every supported runtime. Read only the matching runtime guide:
+
+- **Claude Code:** [CLAUDE.md](CLAUDE.md) covers models, agents, hooks, imports, and local memory.
+- **Codex:** [CODEX.md](CODEX.md) covers available tools, instruction loading, and installation.
+
+Repository-specific rules and the current runtime's guide supplement this shared policy.
+Runtime approval and sandbox restrictions always apply.
 
 ## Agent Roles
 
-**Lead supervisor**: the session the user prompts directly, on Opus 5.5. It owns the user's
+**Lead supervisor**: the session the user prompts directly. It owns the user's
 intent, the plan, delegation, integration, verification, and the final result. It declares the
 workflow mode, maintains shared working documents, and is the only role that runs mutating git,
 which it does automatically (see Git Management).
 
-**Sub-supervisor** (`supervisor` agent): spawned by the lead to own one workstream. It splits
+**Sub-supervisor**: spawned by the lead to own one workstream. It splits
 the workstream into briefs, dispatches its own team of workers, verifies their output,
 integrates it, and returns one report. It never commits, never edits a shared working document,
-and never spawns another supervisor **(hook)**.
+and never spawns another supervisor.
 
-**Worker** (`worker-light`, `worker`, `worker-heavy`): executes one bounded brief, writes its
+**Worker**: executes one bounded brief, writes its
 own report file, and reports what it did and did not verify. Workers cannot spawn agents,
-never commit **(hook)**, and never edit shared documents. Their rules live in their agent
+never commit, and never edit shared documents. Their rules live in their runtime-specific agent
 definitions, so a brief holds only the task.
 
 Every report from below is a claim, not verification. Each level confirms the level beneath it
@@ -30,27 +30,11 @@ before treating work as done; the lead re-runs the acceptance checks itself.
 
 ## Model Routing
 
-Delegate each piece of work to the cheapest model that will reliably finish it. Opus 5.5 is the
-ceiling. Never use Fable unless the user asks for it **(hook: asks the user)**. Set the model on
-every Agent call through a tiered agent or the `model` parameter; built-in agents called without
-one are refused **(hook)**.
-
-| Agent | Model | Use for |
-| --- | --- | --- |
-| `Explore` + `model: "haiku"` | Haiku 5.5 | Read-only search fan-out. Read only its conclusion. |
-| `worker-light` | Haiku 5.5 | Run a named command and report its output, summarise logs or test output, fully specified mechanical edits (exact text, renames, formatting). |
-| `worker` | Sonnet 5.5 | The default. Bounded implementation from a clear brief: features, tests, fixes with a known cause, refactors, docs, run-fix-rerun loops, first-pass review. |
-| `worker-heavy` | Opus 5.5 | Debugging with an unknown cause, design, concurrency, security, data and migration integrity, cross-cutting changes, adversarial review of critical work, a retry after a Sonnet failure. |
-| `supervisor` | Opus 5.5 (or `model: "sonnet"` for routine workstreams) | Owning a whole workstream with its own team. |
-
-Pick the tier with two questions. Can a precise brief say exactly what to do? Then Haiku if the
-work is mechanical, Sonnet if it needs judgement in code. Is the answer unknown, or would a wrong
-answer be costly or hard to detect? Then Opus.
-
-**Escalation.** On a capability failure (wrong fix, missed cause, looping), re-dispatch once at
-the next tier with the failed report attached. If the brief was thin, fix the brief and retry at
-the same tier: that is a supervisor defect, not a model one. Never skip a tier, and never retry
-the same tier twice with an unchanged brief.
+Choose the cheapest available model that can reliably finish the task. Use the current
+runtime's model configuration and supported agent tools, as described in its runtime guide.
+On a capability failure, retry once at the next available capability tier with the failed
+report attached. If the brief was insufficient, fix it before retrying. Never repeat an
+unchanged failed brief at the same tier.
 
 ## Supervisor Hierarchy
 
@@ -70,13 +54,13 @@ dispatches workers directly.
   sub-supervisor writes `reports/<supervisor-label>.md` and returns the return contract. The
   lead reads sub-supervisor reports, not worker reports, unless verifying a specific claim.
 - **Budget.** The lead states in each sub-supervisor brief the tiers it may use and roughly how
-  many workers. A sub-supervisor that needs Opus workers outside its brief asks the lead first.
+  many workers. A sub-supervisor that needs a higher capability tier outside its brief asks the lead first.
 
 ## Start Here
 
 Context is a budget; do not spend it on documents your task will not use.
 
-**Lead supervisor.** Read the repository's `AGENTS.md`/`CLAUDE.md`. If it has `docs/working/`,
+**Lead supervisor.** Read the repository's `AGENTS.md` and matching runtime guide. If it has `docs/working/`,
 read the handoff and the index rows for Active and Blocked work, then the `Current State` of the
 relevant document only.
 
@@ -97,21 +81,22 @@ repository's `agent-working-doc-protocol.md` defines their format.
 - Commit working-document updates with the work that changed them.
 - A ledger `Validation` line quotes the command and its observed output.
 
-**Lifecycle.** The lead starts a task with `/resume` and ends it with `/handoff`, then `/clear`.
+**Lifecycle.** Read the handoff before work, record the resulting state when finished, and
+refresh session context as needed. Runtime guides define any supporting commands.
 
 ## Memory Tiers
 
 | Tier | Where | Holds |
 | --- | --- | --- |
 | Global | `<MeritPrompts>/AGENTS.md`, `<MeritPrompts>/lessons/global/` | True in every project |
-| Family | `<MeritPrompts>/lessons/<family>/`, imported by the project's `CLAUDE.md` | True across a group of repositories |
+| Family | `<MeritPrompts>/lessons/<family>/`, loaded through the runtime guide | True across a group of repositories |
 | Project | `AGENTS.md`, `docs/architecture/`, `docs/working/` | True for anyone who clones |
-| Local | `~/.claude/projects/<slug>/memory/`, `CLAUDE.local.md` | This machine only |
+| Local | Runtime-specific local memory (see runtime guide) | This machine only |
 | Task | The brief; its report file | This task only |
 
 Place a fact by asking in order: true elsewhere? Global, or family. True for every clone?
 Project. This machine? Local. This task? Task. A lesson that generalises goes into MeritPrompts
-with `/lesson` as well as wherever the harness put it.
+using the runtime's lesson workflow as well as wherever the harness put it.
 
 ## Workflow Modes
 
@@ -141,8 +126,7 @@ afterwards, when a run-fix-rerun loop is expected, when edits are bulk and parti
 when independent pieces touch no common file. Keep with yourself one- or two-file edits you
 already understand, verification of claims from below, integration, conflict resolution, and
 anything that needs the user's conversation. Reads are the cost: route discovery through
-`Explore` or a worker and read the conclusion, not the files. Dispatch in the foreground when
-you need the result to continue; a background agent's completion does not wake a sub-supervisor.
+a read-only discovery agent or a worker and read the conclusion, not the files. Wait for results you need before continuing dependent work.
 
 Briefs are at most 40 lines: goal, owned paths, must-not-touch paths, the context files to read,
 acceptance checks to run, and the report path. Run independent agents in parallel in one
@@ -157,7 +141,7 @@ Report: <path>
 Notes: <at most three lines>
 ```
 
-A worker or sub-supervisor that stops without it is sent back once to add it **(hook)**.
+A worker or sub-supervisor that stops without it is sent back once to add it.
 
 ## Validation
 
@@ -170,11 +154,11 @@ failed checks as they happened.
 Git is managed automatically in every repository. The lead creates branches, commits, pushes,
 merges finished work into its parent branch, and promotes `dev` to `main` without asking, and
 reports what it did. A repository opts out with `git config merit.auto false` or by saying so in
-its own `AGENTS.md`. Only the lead runs mutating git **(hook)**; workers and sub-supervisors
+its own `AGENTS.md`. Only the lead runs mutating git; workers and sub-supervisors
 leave changes in the working tree for the lead to commit.
 
 **Branches.** `main` is stable, `dev` is integration, and every work branch records its parent.
-Manage them with `node <MeritPrompts>/tools/branch.mjs` (the path is in `~/.claude/CLAUDE.md`): `status`, `init` (creates `dev` off
+Manage them with `node <MeritPrompts>/tools/branch.mjs` (the installer records its path): `status`, `init` (creates `dev` off
 `main`), `start <name> [--parent <branch>] [--worktree]`, `sync`, `finish [<branch>]`, `promote`. Name work branches
 `feat/<slug>` or `fix/<slug>`; a sub-branch of a feature is `feat/<epic>--<part>` with
 `--parent feat/<epic>`; a hotfix starts with `--parent main`. A repository with only `main` gets
@@ -182,7 +166,7 @@ Manage them with `node <MeritPrompts>/tools/branch.mjs` (the path is in `~/.clau
 
 **Where work goes.** A self-contained change validated in one step is committed on `dev`. A
 briefed multi-step unit, each sub-supervisor's workstream, and experimental work each get their
-own branch. Use `start --worktree` (checked out under `.claude/worktrees/`, git-excluded) when
+own branch. Use `start --worktree` (in the tool's git-excluded worktree directory) when
 workstreams run at the same time or validation must not see another agent's edits; `finish
 <branch>` merges it from the main checkout and removes the worktree. Never create checkouts or staging folders beside the repository
 or in a drive root.
@@ -207,7 +191,7 @@ Hotfixes on `main` are merged back into `dev` first.
 **Publishing to npm** happens only in `promote`, after `main` is pushed. A package takes part when
 its `package.json` has `publishConfig` and is not `private`; `promote` publishes each such package
 whose version is not on the registry yet, then tags and pushes `<name>@<version>`. Nothing
-publishes from `dev` or a work branch, and only the lead publishes **(hook)**. When a change to a
+publishes from `dev` or a work branch, and only the lead publishes. When a change to a
 published package merges into `dev`, bump its version in the same unit: patch for fixes, minor
 for features, minor for breaking changes below 1.0, and major for breaking changes from 1.0 on,
 which needs the user's approval first. Packages build in `prepublishOnly`, and the promote check
@@ -215,9 +199,9 @@ covers that build.
 
 **Stop and ask** only for a merge conflict you cannot resolve with confidence, force-push,
 rewriting pushed history, deleting an unmerged branch, opening a pull request, a major version
-bump, or any registry change outside `promote` such as unpublish or deprecate **(hook asks for
-force-push, remote deletes, history rewrites, and direct registry writes)**. Never use `--no-verify` **(hook)**.
+bump, or any registry change outside `promote` such as unpublish or deprecate.
+Never use `--no-verify`.
 Never commit secrets, private data, or generated runtime state.
 
-A turn that ends with new uncommitted or unpushed work is sent back once **(hook)**: commit and
+A turn that ends with new uncommitted or unpushed work is sent back once: commit and
 push it, or say in one line why it waits (checks failing, mid-change, waiting on the user).

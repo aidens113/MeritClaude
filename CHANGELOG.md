@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Separated runtime-neutral AGENTS.md policy from Claude routing, hooks, commands, and local
+  memory in CLAUDE.md, and Codex tools and instruction loading in CODEX.md.
+- Claude installation now imports its runtime guide explicitly; Codex snapshots exclude
+  Claude model routing. Installer tests enforce that separation.
+
+Validation: `npm test` passed 51 tests before the final policy regression check was added;
+the focused installer suite then passed all 10 tests. Its first regression-check run matched
+the shared lessons directory by mistake; the command-name matcher was corrected and rerun.
+
 ## 0.2.0 — 2026-10-30
 
 - Renamed the GitHub repository, npm package, CLI, and internal branding to MeritPrompts.

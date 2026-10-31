@@ -24,7 +24,7 @@ function fixture(t) {
   const repo = join(root, 'repo');
   const home = join(root, 'home');
   mkdirSync(home);
-  for (const part of ['install.mjs', 'AGENTS.md', 'CODEX.md', 'agents', 'skills']) cpSync(join(REPO, part), join(repo, part), { recursive: true });
+  for (const part of ['install.mjs', 'AGENTS.md', 'CLAUDE.md', 'CODEX.md', 'agents', 'skills']) cpSync(join(REPO, part), join(repo, part), { recursive: true });
   mkdirSync(join(repo, 'lessons', 'global'), { recursive: true });
   mkdirSync(join(repo, 'lessons', 'fam'), { recursive: true });
   writeFileSync(join(repo, 'lessons', 'global', 'b-second.md'), LESSON('b-second', 'global', 'Second lesson', 'What the second one says.'));
@@ -73,6 +73,8 @@ test('Codex install previews, backs up, preserves config, checks drift and is id
   const installed = readFileSync(join(home, 'AGENTS.md'), 'utf8');
   assert.ok(installed.includes(readFileSync(join(repo, 'CODEX.md'), 'utf8')));
   assert.match(installed, /First lesson/);
+  assert.doesNotMatch(installed, /Opus|Sonnet|Haiku|Fable|model: "haiku"/,
+    'Codex guidance must not inherit Claude model routing');
   assert.match(installed, /tools\/branch.mjs/);
   assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/lessons/global/a-first.md`));
   assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/CODEX.md`));
@@ -112,6 +114,13 @@ test('the real global index matches the format --index produces for its own less
   const lines = index.split('\n');
   assert.equal(lines[0], '# Global lessons');
   for (const line of lines.filter((l) => l.startsWith('- '))) assert.match(line, /^- \[[^\]]+\]\([a-z0-9-]+\.md\): \S/);
+});
+
+test('shared policy contains runtime pointers without runtime configuration', () => {
+  const shared = readFileSync(join(REPO, 'AGENTS.md'), 'utf8');
+  assert.match(shared, /\[CLAUDE.md\]\(CLAUDE.md\)/);
+  assert.match(shared, /\[CODEX.md\]\(CODEX.md\)/);
+  assert.doesNotMatch(shared, /Opus|Sonnet|Haiku|Fable|Explore|~\/\.claude|\*\*\(hook|\/(?:resume|handoff|clear|lesson)\b/);
 });
 
 test('--check passes after --apply and an index refresh, and writes nothing', (t) => {

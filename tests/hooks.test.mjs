@@ -329,6 +329,7 @@ test('install: replaces retired hooks, keeps user settings, and is idempotent', 
   const repoPath = REPO.replace(/\\/g, '/');
   const claudeMd = readFileSync(join(home, 'CLAUDE.md'), 'utf8');
   assert.ok(claudeMd.includes(`@${repoPath}/AGENTS.md`), claudeMd);
+  assert.ok(claudeMd.includes(`@${repoPath}/CLAUDE.md`), 'Claude runtime policy is imported');
   assert.ok(claudeMd.includes(`@${repoPath}/lessons/global/INDEX.md`));
   assert.ok(claudeMd.includes(`node ${repoPath}/tools/branch.mjs`));
   assert.match(readFileSync(join(home, 'agents', 'worker-light.md'), 'utf8'), /model: haiku/);
