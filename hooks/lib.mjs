@@ -1,4 +1,4 @@
-// Shared plumbing for MeritClaude hooks: read the hook's JSON input from stdin and emit
+// Shared plumbing for MeritPrompts hooks: read the hook's JSON input from stdin and emit
 // Claude Code's documented hook outputs. Every hook fails open: an internal error is
 // written to stderr (a non-blocking hook error) and never blocks the session.
 import { readFileSync } from 'node:fs';
@@ -35,7 +35,7 @@ export function runHook(handler) {
   try {
     handler(readInput());
   } catch (error) {
-    process.stderr.write(`MeritClaude hook error: ${error?.stack ?? error}\n`);
+    process.stderr.write(`MeritPrompts hook error: ${error?.stack ?? error}\n`);
   }
   process.exit(0);
 }

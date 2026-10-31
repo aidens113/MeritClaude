@@ -15,9 +15,9 @@ You are the lead supervisor ending a task. Do every step in order; do not skip t
    per the protocol before anything else.
 3. **Index and audit.** If `package.json` has a `structure:baseline` script, the repository's
    structure audit owns `docs/working/README.md`: run `pnpm structure:baseline`, then
-   `pnpm structure:check`, and never run the MeritClaude audit there (its index format differs).
+   `pnpm structure:check`, and never run the MeritPrompts audit there (its index format differs).
    Otherwise regenerate the index with
-   `node {{MERITCLAUDE}}/tools/working-docs-audit.mjs --update`, then run it again without
+   `node {{MERITPROMPTS}}/tools/working-docs-audit.mjs --update`, then run it again without
    `--update` and confirm it prints `working-docs: passed`; fix any finding it prints.
 4. **Lessons.** If the user corrected you or stated a standing preference that applies beyond
    this repository, record it with `/lesson <global|family> <slug>`. If the same lesson also
@@ -26,7 +26,7 @@ You are the lead supervisor ending a task. Do every step in order; do not skip t
    session changed. Commit with a message stating what and why. Never use `--no-verify`.
 6. **Merge or push** under Git Management in the global `AGENTS.md` and any override in the
    repository's own `AGENTS.md`: on a finished work branch run
-   `node {{MERITCLAUDE}}/tools/branch.mjs finish --check "<checks>"`; otherwise push the branch.
+   `node {{MERITPROMPTS}}/tools/branch.mjs finish --check "<checks>"`; otherwise push the branch.
    If the repository holds pushes until checks pass, say what holds it.
 7. **Finish** with two lines: `Git: <what was committed, merged, and pushed, or what is held and why>`
    and `Next: /clear, then /resume <document>`.

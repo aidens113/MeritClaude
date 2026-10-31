@@ -66,7 +66,7 @@ function workingDir(cwd) {
 export function buildContext(cwd) {
   const working = workingDir(cwd);
   if (!working) return '';
-  const head = ['MeritClaude session context (docs/working):'];
+  const head = ['MeritPrompts session context (docs/working):'];
   if (existsSync(join(working, 'handoff.md'))) {
     head.push('- Handoff: docs/working/handoff.md. Read it before touching work in progress.');
   }

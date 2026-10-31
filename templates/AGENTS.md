@@ -5,8 +5,9 @@ every agent pays for it on every task. -->
 # Agent Instructions: <Project>
 
 The global rules (roles, model routing, workflow modes, delegation, automatic git management)
-load from MeritClaude for every session. This file adds what is specific to this repository and
-wins where the two conflict.
+load from MeritPrompts for every session. This file adds what is specific to this repository and
+wins where the two conflict. Install global rules for the runtime in use first.
+Codex sessions: read [CODEX.md](CODEX.md). Claude sessions: read [CLAUDE.md](CLAUDE.md).
 
 ## Purpose
 

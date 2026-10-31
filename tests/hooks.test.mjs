@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
-const tmp = () => mkdtempSync(join(tmpdir(), 'meritclaude-test-'));
+const tmp = () => mkdtempSync(join(tmpdir(), 'meritprompts-test-'));
 
 function run(script, input, env = {}) {
   const r = spawnSync(process.execPath, [join(REPO, script), ...(input.argv ?? [])], {
@@ -25,13 +25,13 @@ const bash = (command, agent_type) => ({ tool_name: 'Bash', tool_input: { comman
 test('git-guard: subagents get read-only git only', () => {
   const allow = ['git status && git diff --stat', 'git log --oneline -5 | head', 'git branch', 'git branch -a',
     'git stash list', 'git -C D:/x show HEAD', 'git remote -v', 'git worktree list', 'git config --get user.name',
-    'npm test', 'gitk', 'echo done', 'git tag', 'node D:/MeritClaude/tools/branch.mjs status'];
+    'npm test', 'gitk', 'echo done', 'git tag', 'node D:/MeritPrompts/tools/branch.mjs status'];
   for (const c of allow) assert.equal(decision(run('hooks/git-guard.mjs', bash(c, 'worker'))), 'allow', c);
   const deny = ['git commit -m x', 'git status && git commit -m x', 'git -C D:/x push', 'git add .', 'git stash',
     'git checkout main', 'git switch dev', 'git reset --hard', 'git branch -D x', 'git branch feat/x',
     'bash -c "git commit -m \'msg\'"', 'cd x; git push origin dev', 'git.exe merge dev', 'git tag v1',
     'git worktree add ../x', 'git restore .', 'git clean -fd', 'git rebase dev',
-    'node D:/MeritClaude/tools/branch.mjs finish --check "npm test"', 'node tools/branch.mjs start feat/x'];
+    'node D:/MeritPrompts/tools/branch.mjs finish --check "npm test"', 'node tools/branch.mjs start feat/x'];
   for (const c of deny) assert.equal(decision(run('hooks/git-guard.mjs', bash(c, 'supervisor'))), 'deny', c);
 });
 
@@ -51,7 +51,7 @@ test('git-guard: lead may commit and push, but not bypass hooks or force-push si
 test('git-guard: registry writes go through promote', () => {
   const check = (c, who) => decision(run('hooks/git-guard.mjs', bash(c, who)));
   for (const c of ['npm publish', 'pnpm publish --no-git-checks', 'cd packages/x && npm publish --access public',
-    'node D:/MeritClaude/tools/branch.mjs publish', 'npm unpublish x@1.0.0', 'yarn npm publish']) {
+    'node D:/MeritPrompts/tools/branch.mjs publish', 'npm unpublish x@1.0.0', 'yarn npm publish']) {
     assert.equal(check(c, 'worker'), 'deny', c);
   }
   assert.equal(check('npm publish --dry-run', 'worker'), 'allow');
@@ -60,8 +60,8 @@ test('git-guard: registry writes go through promote', () => {
   assert.equal(check('npm deprecate x@1 "old"'), 'ask');
   assert.equal(check('npm dist-tag add x@1.0.0 latest'), 'ask');
   assert.equal(check('npm dist-tag ls x'), 'allow');
-  assert.equal(check('node D:/MeritClaude/tools/branch.mjs publish'), 'allow');
-  assert.equal(check('node D:/MeritClaude/tools/branch.mjs promote --check "npm test"'), 'allow');
+  assert.equal(check('node D:/MeritPrompts/tools/branch.mjs publish'), 'allow');
+  assert.equal(check('node D:/MeritPrompts/tools/branch.mjs promote --check "npm test"'), 'allow');
 });
 
 test('agent-guard: routing and hierarchy', () => {
@@ -285,8 +285,8 @@ test('git-guard: ported worker rules: heredocs, gh pr writes, substitutions, age
     tool_input: { command: '& "C:\\Program Files\\Git\\cmd\\git.exe" commit -m x' } })), 'deny');
 });
 
-test('bin/meritclaude: lists commands and forwards to them', () => {
-  const cli = (...a) => spawnSync(process.execPath, [join(REPO, 'bin', 'meritclaude.mjs'), ...a], { encoding: 'utf8' });
+test('bin/meritprompts: lists commands and forwards to them', () => {
+  const cli = (...a) => spawnSync(process.execPath, [join(REPO, 'bin', 'meritprompts.mjs'), ...a], { encoding: 'utf8' });
   const help = cli();
   assert.equal(help.status, 0);
   assert.match(help.stdout, /install[\s\S]*branch[\s\S]*usage/);
@@ -334,7 +334,7 @@ test('install: replaces retired hooks, keeps user settings, and is idempotent', 
   assert.match(readFileSync(join(home, 'agents', 'worker-light.md'), 'utf8'), /model: haiku/);
   for (const skill of ['handoff', 'resume', 'lesson', 'new-project']) {
     const text = readFileSync(join(home, 'skills', skill, 'SKILL.md'), 'utf8');
-    assert.doesNotMatch(text, /\{\{MERITCLAUDE\}\}|AgentBrain|F:\\/, skill);
+    assert.doesNotMatch(text, /\{\{MERITPROMPTS\}\}|AgentBrain|F:\\/, skill);
     if (skill !== 'resume' || text.includes('branch.mjs')) assert.ok(text.includes(repoPath), skill);
   }
 

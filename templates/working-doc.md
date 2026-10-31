@@ -11,7 +11,7 @@ Related: <links to the instructions, architecture, or sibling documents an agent
 
 <!-- Template: copy to docs/working/<effort-slug>.md, fill in the header block
      (each field on one line), then run
-     `node <MeritClaude>/tools/working-docs-audit.mjs --update` to add it to the
+     `node <MeritPrompts>/tools/working-docs-audit.mjs --update` to add it to the
      index in the same work unit. The section order below is fixed: Current
      State first, reference sections, worker briefs, the ledger, open questions. -->
 
@@ -34,7 +34,7 @@ Related: <links to the instructions, architecture, or sibling documents an agent
 ## Worker Briefs
 
 <!-- One brief per agent, written before dispatch, in the shape of
-     MeritClaude's templates/brief.md. Delete this section until the first
+     MeritPrompts's templates/brief.md. Delete this section until the first
      dispatch. -->
 
 ## Work Ledger

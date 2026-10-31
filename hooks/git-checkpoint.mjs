@@ -68,7 +68,7 @@ export function sessionFiles(state, startHashes) {
 }
 
 function statePath(sessionId) {
-  const dir = join(tmpdir(), 'meritclaude-git-checkpoint');
+  const dir = join(tmpdir(), 'meritprompts-git-checkpoint');
   mkdirSync(dir, { recursive: true });
   return join(dir, `${String(sessionId ?? 'unknown').replace(/[^\w-]/g, '_')}.json`);
 }

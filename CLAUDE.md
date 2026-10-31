@@ -1,4 +1,4 @@
-# MeritClaude: Claude Code specifics
+# MeritPrompts: Claude Code specifics
 
 This repository is the global brain: `~/.claude/CLAUDE.md` imports [AGENTS.md](AGENTS.md), so
 every rule there is already loaded. Editing `AGENTS.md` changes every session on this machine;

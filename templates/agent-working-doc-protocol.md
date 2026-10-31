@@ -1,7 +1,7 @@
 # Agent Working Document Protocol
 
 Status: Active
-Status detail: Installed from the MeritClaude template on <YYYY-MM-DD>.
+Status detail: Installed from the MeritPrompts template on <YYYY-MM-DD>.
 Created: <YYYY-MM-DD>
 Last updated: <YYYY-MM-DD>
 Owner: Senior supervisor agent
@@ -19,7 +19,7 @@ repository.
 
 **Adopted.** Working documents follow the header block, `Current State`, and ledger format
 below. The index in [README.md](./README.md) is generated from the documents' headers by
-`node <MeritClaude>/tools/working-docs-audit.mjs --update`, and the same tool without
+`node <MeritPrompts>/tools/working-docs-audit.mjs --update`, and the same tool without
 `--update` checks every document against this protocol.
 
 **Not done:** none.
@@ -169,7 +169,7 @@ Brief format:
 `Owns` and `Must not touch` are what make parallel work safe. Partition by file, never by
 topic. If two briefs need the same file, the work is serial. A brief is at most 40 lines, and
 holds only the task: each agent's operating rules (what to read, never committing, the return
-contract) live in its agent definition. A copyable block is in MeritClaude's
+contract) live in its agent definition. A copyable block is in MeritPrompts's
 `templates/brief.md`, and the report skeleton in `templates/worker-report.md`.
 
 Report file format:
@@ -217,7 +217,7 @@ one-line scope, and paired document. It is the cheapest entry point: an agent re
 the right document instead of listing the directory and guessing. It is generated from the
 header blocks, so edit a document's header, never the table. Any agent that creates, retires,
 or re-statuses a document regenerates it in the same work unit with
-`node <MeritClaude>/tools/working-docs-audit.mjs --update`, and runs the tool again without
+`node <MeritPrompts>/tools/working-docs-audit.mjs --update`, and runs the tool again without
 `--update` to confirm every document conforms.
 
 ### Durability

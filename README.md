@@ -1,7 +1,7 @@
-# MeritClaude
+# MeritPrompts
 
-Global agent rules, agent definitions, and hooks for Claude Code on this machine. It replaces
-the retired `F:/!AgentBrain` brain. One Opus 5.5 lead supervisor owns the high-level work and
+Shared agent rules for Claude Code and Codex, with Claude-specific agent definitions and hooks.
+It replaces the retired `F:/!AgentBrain` brain. In Claude Code, one Opus 5.5 lead supervisor owns the high-level work and
 delegates to teams that run on the cheapest model that will reliably finish each task, with the
 rules enforced by configuration and hooks rather than by prompt text alone.
 
@@ -17,9 +17,13 @@ Lead supervisor (main session, Opus 5.5)
 
 ## Contents
 
+Codex uses the shared policy with [CODEX.md](CODEX.md) runtime adaptations. The Claude model
+tiers and hooks below apply to Claude Code; Codex uses its configured models and tools.
+
 | Path | What it is |
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | The global rules: roles, model routing, supervisor hierarchy, workflow modes, delegation, commits. Imported by `~/.claude/CLAUDE.md`. |
+| [CODEX.md](CODEX.md) | Codex runtime adaptations, referenced explicitly by AGENTS.md and included in the Codex install. |
 | [agents/](agents/) | `supervisor`, `worker-light`, `worker`, `worker-heavy`. Each pins its model and effort in frontmatter. |
 | [hooks/](hooks/) | Enforcement and telemetry hooks (below). |
 | [skills/](skills/) | `/resume`, `/handoff`, `/lesson`, `/new-project`. Installed with this repository's path filled in. |
@@ -95,11 +99,28 @@ node install.mjs            # dry run: lists every change
 node install.mjs --apply    # backs up to ~/.claude/backups/, then applies
 node install.mjs --check    # budgets, stale lesson indexes, drift; exit 1 on any problem
 node install.mjs --index    # regenerate lessons/*/INDEX.md after editing a lesson
+node install.mjs --codex          # preview Codex global instruction snapshot
+node install.mjs --codex --apply  # back up and install into $CODEX_HOME or ~/.codex
+node install.mjs --codex --check  # check Codex snapshot drift without writing
 ```
 
 The installer copies the agent files rather than linking them, so re-run it after editing
 `agents/`. Edits to `AGENTS.md` and `hooks/` take effect immediately because Claude Code reads
 them from this repository. Re-running is idempotent.
+
+Codex installation writes only `AGENTS.md` in its home, combining the shared policy, Codex
+adapter, and global lesson index. It leaves `config.toml`, credentials, skills, and agent
+configuration untouched. Use `--home <directory>` to override the target for either runtime.
+Reinstall Codex guidance after source edits and start a new session. `AGENTS.override.md`, if
+present, takes precedence and is preserved. Project templates include a `CODEX.md` pointer
+in `AGENTS.md`; Codex does not automatically discover `CODEX.md` or expand Claude imports.
+See [official instruction discovery documentation](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+
+The repository and npm CLI are now named `MeritPrompts` / `meritprompts` (previously
+`MeritClaude` / `meritclaude`). The remote is `https://github.com/aidens113/MeritPrompts.git`.
+Existing local checkout directories can keep their names; installation uses the actual path.
+Install with `npm install -g meritprompts`; use `meritprompts install --codex --apply` for Codex
+or `meritprompts install --apply` for Claude Code. Re-run the installer after migrating.
 
 ## Verify
 
