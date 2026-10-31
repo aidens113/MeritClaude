@@ -19,12 +19,12 @@ const LESSON = (name, scope, title, description) => [
 // A copy of the parts of the repository the installer reads, with fixture lessons in place of
 // the real ones, plus an empty home. Both are removed when the test ends.
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'meritclaude-install-'));
+  const root = mkdtempSync(join(tmpdir(), 'meritprompts-install-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repo = join(root, 'repo');
   const home = join(root, 'home');
   mkdirSync(home);
-  for (const part of ['install.mjs', 'AGENTS.md', 'agents', 'skills']) cpSync(join(REPO, part), join(repo, part), { recursive: true });
+  for (const part of ['install.mjs', 'AGENTS.md', 'CODEX.md', 'agents', 'skills']) cpSync(join(REPO, part), join(repo, part), { recursive: true });
   mkdirSync(join(repo, 'lessons', 'global'), { recursive: true });
   mkdirSync(join(repo, 'lessons', 'fam'), { recursive: true });
   writeFileSync(join(repo, 'lessons', 'global', 'b-second.md'), LESSON('b-second', 'global', 'Second lesson', 'What the second one says.'));
@@ -54,6 +54,51 @@ test('--index writes one exact line per lesson under the heading and intro', (t)
     '# Lessons for the fam family\n\n- [no-title](no-title.md): A lesson with no heading.\n');
 });
 
+test('Codex install previews, backs up, preserves config, checks drift and is idempotent', (t) => {
+  const { repo, home, run } = fixture(t);
+  assert.equal(run('--index').status, 0);
+  writeFileSync(join(home, 'AGENTS.md'), 'user instructions\n');
+  writeFileSync(join(home, 'config.toml'), 'model = "user-model"\n');
+  writeFileSync(join(home, 'AGENTS.override.md'), 'override\n');
+  const before = readdirSync(home).sort();
+  const dry = run('--codex');
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.deepEqual(readdirSync(home).sort(), before);
+  assert.equal(readFileSync(join(home, 'AGENTS.md'), 'utf8'), 'user instructions\n');
+  assert.equal(run('--codex', '--check', '--apply').status, 1);
+  assert.equal(readFileSync(join(home, 'AGENTS.md'), 'utf8'), 'user instructions\n');
+  const applied = run('--codex', '--apply');
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.match(applied.stderr, /AGENTS.override.md/);
+  const installed = readFileSync(join(home, 'AGENTS.md'), 'utf8');
+  assert.ok(installed.includes(readFileSync(join(repo, 'CODEX.md'), 'utf8')));
+  assert.match(installed, /First lesson/);
+  assert.match(installed, /tools\/branch.mjs/);
+  assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/lessons/global/a-first.md`));
+  assert.ok(installed.includes(`${repo.replace(/\\/g, '/')}/CODEX.md`));
+  assert.equal(readFileSync(join(home, 'config.toml'), 'utf8'), 'model = "user-model"\n');
+  assert.equal(readFileSync(join(home, 'AGENTS.override.md'), 'utf8'), 'override\n');
+  assert.ok(!existsSync(join(home, 'settings.json')));
+  assert.ok(!existsSync(join(home, 'agents')));
+  const copies = readdirSync(join(home, 'backups'));
+  assert.equal(copies.length, 1);
+  assert.equal(readFileSync(join(home, 'backups', copies[0]), 'utf8'), 'user instructions\n');
+  assert.match(run('--codex', '--apply').stdout, /nothing to change/);
+  assert.equal(run('--codex', '--check').status, 0);
+  writeFileSync(join(repo, 'CODEX.md'), 'changed adapter\n');
+  assert.equal(run('--codex', '--check').status, 1);
+});
+
+test('Codex install honors CODEX_HOME without creating Claude configuration', (t) => {
+  const { repo, home, run } = fixture(t);
+  assert.equal(run('--index').status, 0);
+  const result = spawnSync(process.execPath, [join(repo, 'install.mjs'), '--codex', '--apply'], {
+    encoding: 'utf8', env: { ...process.env, CODEX_HOME: home },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(readdirSync(home), ['AGENTS.md']);
+});
+
 test('--index keeps an existing index heading and intro and replaces only the entries', (t) => {
   const { repo, run } = fixture(t);
   const index = join(repo, 'lessons', 'fam', 'INDEX.md');
@@ -77,7 +122,7 @@ test('--check passes after --apply and an index refresh, and writes nothing', (t
   const before = readdirSync(home).sort();
   const r = run('--check');
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /MeritClaude check passed/);
+  assert.match(r.stdout, /MeritPrompts check passed/);
   assert.deepEqual(readdirSync(home).sort(), before);
 });
 
@@ -85,7 +130,7 @@ test('--check on an empty home reports drift and stale indexes, exits 1, and wri
   const { home, run } = fixture(t);
   const r = run('--check', '--apply');
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /MeritClaude check failed/);
+  assert.match(r.stderr, /MeritPrompts check failed/);
   assert.match(r.stderr, /lessons\/global\/INDEX\.md is stale; run: node install\.mjs --index/);
   assert.match(r.stderr, /lessons\/fam\/INDEX\.md is stale/);
   assert.match(r.stderr, /would write .*CLAUDE\.md/);

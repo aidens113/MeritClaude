@@ -1,10 +1,10 @@
 ---
 name: lesson
-description: Record a lesson in MeritClaude at the global or family tier and update that tier's index. Use when the user states a standing preference or corrects an approach in a way that applies beyond the current repository.
+description: Record a lesson in MeritPrompts at the global or family tier and update that tier's index. Use when the user states a standing preference or corrects an approach in a way that applies beyond the current repository.
 argument-hint: <global|family> <slug>
 ---
 
-Record a lesson at `{{MERITCLAUDE}}/lessons/$0/$1.md`. `$0` is `global` or a family name such
+Record a lesson at `{{MERITPROMPTS}}/lessons/$0/$1.md`. `$0` is `global` or a family name such
 as `fluxiq`; `$1` is a short kebab-case slug. If the file already exists, update it rather than
 creating a second one.
 
@@ -32,17 +32,17 @@ origin: <repository and date>
 <Why it matters, so a future agent can judge edge cases.>
 ```
 
-Then regenerate the indexes with `node {{MERITCLAUDE}}/install.mjs --index`. It rewrites every
+Then regenerate the indexes with `node {{MERITPROMPTS}}/install.mjs --index`. It rewrites every
 `lessons/*/INDEX.md` from the lesson files, one line each, `- [<Title>](<slug>.md): <description>`,
 taking the title from the first `# ` heading and the description from the frontmatter, so never
-edit an index by hand. Check `git -C {{MERITCLAUDE}} diff lessons` shows only this lesson's line
-changing, and that `node {{MERITCLAUDE}}/install.mjs --check` reports no budget problem for the
+edit an index by hand. Check `git -C {{MERITPROMPTS}} diff lessons` shows only this lesson's line
+changing, and that `node {{MERITPROMPTS}}/install.mjs --check` reports no budget problem for the
 lesson or its index. Global lessons load in every session; a family index loads only in
-repositories whose `CLAUDE.md` imports `@{{MERITCLAUDE}}/lessons/<family>/INDEX.md`, so add that
+repositories whose `CLAUDE.md` imports `@{{MERITPROMPTS}}/lessons/<family>/INDEX.md`, so add that
 import to the current repository if it belongs to the family and lacks it.
 
-Commit in MeritClaude under its git rules: work on `dev`, stage only the lesson and index, then
+Commit in MeritPrompts under its git rules: work on `dev`, stage only the lesson and index, then
 push:
-`git -C {{MERITCLAUDE}} switch dev`, `git -C {{MERITCLAUDE}} add lessons/$0`,
-`git -C {{MERITCLAUDE}} commit -m "Add lesson: $1"`, `git -C {{MERITCLAUDE}} push origin dev`.
-If the MeritClaude checkout has other uncommitted changes, commit only the lesson files.
+`git -C {{MERITPROMPTS}} switch dev`, `git -C {{MERITPROMPTS}} add lessons/$0`,
+`git -C {{MERITPROMPTS}} commit -m "Add lesson: $1"`, `git -C {{MERITPROMPTS}} push origin dev`.
+If the MeritPrompts checkout has other uncommitted changes, commit only the lesson files.

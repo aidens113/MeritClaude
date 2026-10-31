@@ -24,7 +24,7 @@ const git = (cwd, ...args) => {
 const branch = (cwd, ...args) => sh(cwd, process.execPath, [BRANCH, ...args]);
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'meritclaude-git-'));
+  const root = mkdtempSync(join(tmpdir(), 'meritprompts-git-'));
   const origin = join(root, 'origin.git');
   const work = join(root, 'work');
   git(root, 'init', '--bare', '-b', 'main', origin);

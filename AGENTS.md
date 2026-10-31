@@ -1,9 +1,12 @@
 # Agent Instructions (global)
 
-These rules govern every Claude Code session on this machine. They are imported by
+These rules govern Claude Code and Codex sessions on this machine. They are imported by
 `~/.claude/CLAUDE.md` and adapted from SwitchYardRouter's `AGENTS.md`. A repository's own
 `AGENTS.md` or `CLAUDE.md` adds project rules (layout, checks, push authority) and wins where
-the two conflict. Hooks in this repository enforce the rules marked **(hook)**.
+the two conflict. Hooks enforce rules marked **(hook)** in Claude Code only.
+Codex: read [CODEX.md](CODEX.md) for runtime adaptations, which override Claude-specific
+assumptions below. Claude Code: read [CLAUDE.md](CLAUDE.md). Install Codex global rules with
+`node <MeritPrompts>/install.mjs --codex --apply` before starting a new session.
 
 ## Agent Roles
 
@@ -100,14 +103,14 @@ repository's `agent-working-doc-protocol.md` defines their format.
 
 | Tier | Where | Holds |
 | --- | --- | --- |
-| Global | `<MeritClaude>/AGENTS.md`, `<MeritClaude>/lessons/global/` | True in every project |
-| Family | `<MeritClaude>/lessons/<family>/`, imported by the project's `CLAUDE.md` | True across a group of repositories |
+| Global | `<MeritPrompts>/AGENTS.md`, `<MeritPrompts>/lessons/global/` | True in every project |
+| Family | `<MeritPrompts>/lessons/<family>/`, imported by the project's `CLAUDE.md` | True across a group of repositories |
 | Project | `AGENTS.md`, `docs/architecture/`, `docs/working/` | True for anyone who clones |
 | Local | `~/.claude/projects/<slug>/memory/`, `CLAUDE.local.md` | This machine only |
 | Task | The brief; its report file | This task only |
 
 Place a fact by asking in order: true elsewhere? Global, or family. True for every clone?
-Project. This machine? Local. This task? Task. A lesson that generalises goes into MeritClaude
+Project. This machine? Local. This task? Task. A lesson that generalises goes into MeritPrompts
 with `/lesson` as well as wherever the harness put it.
 
 ## Workflow Modes
@@ -171,7 +174,7 @@ its own `AGENTS.md`. Only the lead runs mutating git **(hook)**; workers and sub
 leave changes in the working tree for the lead to commit.
 
 **Branches.** `main` is stable, `dev` is integration, and every work branch records its parent.
-Manage them with `node <MeritClaude>/tools/branch.mjs` (the path is in `~/.claude/CLAUDE.md`): `status`, `init` (creates `dev` off
+Manage them with `node <MeritPrompts>/tools/branch.mjs` (the path is in `~/.claude/CLAUDE.md`): `status`, `init` (creates `dev` off
 `main`), `start <name> [--parent <branch>] [--worktree]`, `sync`, `finish [<branch>]`, `promote`. Name work branches
 `feat/<slug>` or `fix/<slug>`; a sub-branch of a feature is `feat/<epic>--<part>` with
 `--parent feat/<epic>`; a hotfix starts with `--parent main`. A repository with only `main` gets

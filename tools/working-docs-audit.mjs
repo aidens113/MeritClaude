@@ -15,7 +15,7 @@
 // Unlike the Core rule there is no ratchet and no baseline: every finding
 // fails.
 //
-// Usage:  node <MeritClaude>/tools/working-docs-audit.mjs [--root <repo>] [--update]
+// Usage:  node <MeritPrompts>/tools/working-docs-audit.mjs [--root <repo>] [--update]
 //   (no flags)  prints one line per finding and exits 1 if there are any,
 //               otherwise prints `working-docs: passed (<n> documents)` and
 //               exits 0

@@ -52,7 +52,7 @@ export function problems(message, cwd) {
 }
 
 function markerPath(agentId) {
-  const dir = join(tmpdir(), 'meritclaude-report-guard');
+  const dir = join(tmpdir(), 'meritprompts-report-guard');
   mkdirSync(dir, { recursive: true });
   return join(dir, `${String(agentId).replace(/[^\w-]/g, '_')}.blocked`);
 }
